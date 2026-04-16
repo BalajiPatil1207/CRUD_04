@@ -1,0 +1,98 @@
+@import "tailwindcss";
+
+@theme {
+  /* Brand Colors */
+  --color-brand-50: #eff6ff;
+  --color-brand-100: #dbeafe;
+  --color-brand-200: #bfdbfe;
+  --color-brand-300: #93c5fd;
+  --color-brand-400: #60a5fa;
+  --color-brand-500: #3b82f6;
+  --color-brand-600: #2563eb;
+  --color-brand-700: #1d4ed8;
+  --color-brand-800: #1e40af;
+  --color-brand-900: #1e3a8a;
+  --color-brand-950: #172554;
+
+  /* Custom Semantic Colors */
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+  --color-info: #0ea5e9;
+
+  /* Surface Colors */
+  --color-surface-light: #ffffff;
+  --color-surface-dark: #0f172a; /* Slate 900 - Softer Dark Navy/Slate */
+  --color-surface-card-light: #f9fafb;
+  --color-surface-card-dark: #1e293b; /* Slate 800 - Lighter for elevation */
+
+
+
+  /* Border Radii */
+  --radius-xs: 0.25rem;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.5rem;
+  --radius-3xl: 2rem;
+
+  /* Typography */
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+@variant dark (&:where(.dark, .dark *));
+
+@layer base {
+
+  :root {
+    --brand-primary: var(--color-brand-600);
+    --brand-hover: var(--color-brand-700);
+    
+    background-color: var(--color-surface-light);
+    color: #111827;
+    scrollbar-gutter: stable;
+  }
+
+
+  .dark {
+    background-color: var(--color-surface-dark);
+    color: #f9fafb;
+  }
+
+  * {
+    @apply border-gray-200 dark:border-slate-800;
+  }
+
+  body {
+    @apply antialiased transition-colors duration-300;
+    font-family: var(--font-sans);
+  }
+
+
+  /* Custom Scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-gray-200 dark:bg-gray-800 rounded-full hover:bg-gray-300 dark:hover:bg-gray-700;
+  }
+}
+
+@layer utilities {
+  .glass {
+    @apply bg-white/70 dark:bg-black/70 backdrop-blur-md border border-white/20 dark:border-white/10;
+  }
+  
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-linear-to-r from-brand-500 to-indigo-600;
+  }
+
+  .shadow-premium {
+    @apply shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)];
+  }
+}
