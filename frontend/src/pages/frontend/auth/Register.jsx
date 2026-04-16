@@ -13,6 +13,7 @@ const Register = () => {
   const { addToast } = useToast();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({});
   const [formData, setFormData] = useState({
     username: "",
     email: "",
@@ -22,22 +23,29 @@ const Register = () => {
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+    // Clear field error when user starts typing
+    if (errors[e.target.name]) {
+      setErrors((prev) => ({ ...prev, [e.target.name]: null }));
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (formData.password !== formData.confirmPassword) {
-      addToast("Passwords do not match", "danger");
+      setErrors((prev) => ({ ...prev, confirmPassword: "Passwords do not match" }));
       return;
     }
 
     setLoading(true);
+    setErrors({});
     const result = await register(formData.username, formData.email, formData.password);
     setLoading(false);
     
     if (result.success) {
       navigate("/login");
+    } else {
+      setErrors(result.errors || {});
     }
   };
 
@@ -70,6 +78,7 @@ const Register = () => {
               icon={User}
               value={formData.username}
               onChange={handleChange}
+              error={errors.username}
               required
             />
 
@@ -81,6 +90,7 @@ const Register = () => {
               icon={Mail}
               value={formData.email}
               onChange={handleChange}
+              error={errors.email}
               required
             />
 
@@ -92,6 +102,7 @@ const Register = () => {
               icon={Lock}
               value={formData.password}
               onChange={handleChange}
+              error={errors.password}
               required
             />
 
@@ -103,6 +114,7 @@ const Register = () => {
               icon={Lock}
               value={formData.confirmPassword}
               onChange={handleChange}
+              error={errors.confirmPassword}
               required
             />
 

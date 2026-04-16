@@ -8,9 +8,6 @@ import Login from "./pages/frontend/auth/Login";
 import Dashboard from "./pages/backend/Dashboard";
 import Index from "./pages/frontend";
 import Register from "./pages/frontend/auth/Register";
-import TeacherIndex from "./pages/backend/teacher/TeacherIndex";
-import TeacherCreate from "./pages/backend/teacher/TeacherCreate";
-import TeacherEdit from "./pages/backend/teacher/TeacherEdit";
 
 function App() {
   return (
@@ -29,9 +26,6 @@ function App() {
               {/* Protected Routes */}
               <Route path="/admin/" element={<ProtectedRoute />}>
                 <Route path="dashboard" element={<Dashboard />} />
-                <Route path="teacher" element={<TeacherIndex />} />
-                <Route path="teacher/create" element={<TeacherCreate />} />
-                <Route path="teacher/edit/:id" element={<TeacherEdit />} />
               </Route>
 
               {/* Fallback */}

@@ -28,9 +28,10 @@ export const AuthProvider = ({ children }) => {
       addToast("Login successful!", "success");
       return { success: true };
     } catch (error) {
-      const message = error.response?.data?.errors?.auth || error.response?.data?.message || "Login failed";
+      const errors = error.response?.data?.errors || {};
+      const message = errors.auth || error.response?.data?.message || "Login failed";
       addToast(message, "danger");
-      return { success: false, message };
+      return { success: false, errors, message };
     }
   };
 
@@ -40,10 +41,10 @@ export const AuthProvider = ({ children }) => {
       addToast("Account created successfully! Please login.", "success");
       return { success: true };
     } catch (error) {
-      const errors = error.response?.data?.errors;
+      const errors = error.response?.data?.errors || {};
       const message = errors ? Object.values(errors)[0] : "Registration failed";
       addToast(message, "danger");
-      return { success: false, message };
+      return { success: false, errors, message };
     }
   };
 

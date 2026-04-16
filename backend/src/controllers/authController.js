@@ -57,13 +57,19 @@ const login = async (req, res) => {
         });
 
         if (!user) {
-            return handle401(res, "Invalid email/username or password");
+            return res.status(401).json({ 
+                status: false, 
+                errors: { identifier: "Invalid email or username" } 
+            });
         }
 
         // Check password
         const isMatch = await comparePassword(password, user.password);
         if (!isMatch) {
-            return handle401(res, "Invalid email/username or password");
+            return res.status(401).json({ 
+                status: false, 
+                errors: { password: "Password is incorrect" } 
+            });
         }
 
         // Generate Token

@@ -11,6 +11,7 @@ const Login = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({});
   const [formData, setFormData] = useState({
     identifier: "",
     password: "",
@@ -18,15 +19,22 @@ const Login = () => {
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+    // Clear field error when user starts typing
+    if (errors[e.target.name]) {
+      setErrors((prev) => ({ ...prev, [e.target.name]: null }));
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setErrors({});
     const result = await login(formData.identifier, formData.password);
     setLoading(false);
     if (result.success) {
       navigate("/admin/dashboard");
+    } else {
+      setErrors(result.errors || {});
     }
   };
 
@@ -59,6 +67,7 @@ const Login = () => {
               icon={Mail}
               value={formData.identifier}
               onChange={handleChange}
+              error={errors.identifier}
               required
             />
 
@@ -70,6 +79,7 @@ const Login = () => {
               icon={Lock}
               value={formData.password}
               onChange={handleChange}
+              error={errors.password}
               required
             />
 
