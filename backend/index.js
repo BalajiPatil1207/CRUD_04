@@ -3,6 +3,8 @@ const express = require('express');
 const cors = require('cors');
 const { connectSQLite, sequelize } = require('./src/config/sqliteDB');
 
+const authRouter = require('./src/routers/authRouter');
+
 const app = express();
 const port = process.env.PORT || 3000;
 
@@ -14,6 +16,9 @@ app.use(express.json());
 app.get('/', (req, res) => {
   res.send('Hello World! Express server is running.');
 });
+
+// Authentication Routes
+app.use('/api/auth', authRouter);
 
 // Start Server and Sync Database
 const startServer = async () => {
