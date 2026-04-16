@@ -4,6 +4,8 @@ const cors = require('cors');
 const { connectSQLite, sequelize } = require('./src/config/sqliteDB');
 
 const authRouter = require('./src/routers/authRouter');
+const productRouter = require('./src/routers/productRouter');
+require('./src/models/productModel');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -19,6 +21,7 @@ app.get('/', (req, res) => {
 
 // Authentication Routes
 app.use('/api/auth', authRouter);
+app.use('/api/product', productRouter);
 
 // Start Server and Sync Database
 const startServer = async () => {
