@@ -26,7 +26,7 @@ export const AuthProvider = ({ children }) => {
       setUser(userData);
       sessionStore(token, userData);
       addToast("Login successful!", "success");
-      return { success: true };
+      return { success: true, user: userData };
     } catch (error) {
       const errors = error.response?.data?.errors || {};
       const message = errors.auth || error.response?.data?.message || "Login failed";

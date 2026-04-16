@@ -59,9 +59,9 @@ const Input = ({
       </div>
 
       {error && (
-        <p className="text-xs font-medium text-red-500 ml-0.5 mt-0.5">
+        <span className="text-[11px] font-bold text-red-500 ml-1 mt-1 animate-in fade-in slide-in-from-top-1 duration-300">
           {error}
-        </p>
+        </span>
       )}
     </div>
   );

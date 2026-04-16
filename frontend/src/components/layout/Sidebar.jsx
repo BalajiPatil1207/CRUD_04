@@ -1,9 +1,8 @@
 import React from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import {
   LayoutDashboard,
-  Users,
   Package,
   LogOut,
   User as UserIcon,
@@ -14,10 +13,10 @@ import ThemeToggle from "../common/ThemeToggle";
 const Sidebar = () => {
   const { user, logout } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
 
   const menuItems = [
     { name: "Dashboard", path: "/admin/dashboard", icon: LayoutDashboard },
-    { name: "Teacher Management", path: "/admin/teacher", icon: Users },
     { name: "Product Catalog", path: "/admin/product", icon: Package },
   ];
 
@@ -52,7 +51,9 @@ const Sidebar = () => {
           Main Menu
         </p>
 
-        {menuItems.map((item) => (
+        {menuItems
+          .filter(item => user?.role === 'admin' || item.path === '/admin/dashboard') // Ensure basic dashboard always accessible if allowed into sidebar
+          .map((item) => (
           <Link
             key={item.name}
             to={item.path}
@@ -102,14 +103,17 @@ const Sidebar = () => {
         </div>
 
         <button
-          onClick={logout}
+          onClick={() => {
+            logout();
+            navigate("/login");
+          }}
           className="group w-full flex items-center justify-center gap-3 px-4 py-3.5 bg-white dark:bg-slate-800 text-red-600 dark:text-red-400 font-black text-xs uppercase tracking-widest border border-red-100 dark:border-red-900/30 hover:bg-red-600 hover:text-white dark:hover:bg-red-500 dark:hover:text-white rounded-2xl transition-all duration-300 shadow-sm hover:shadow-red-500/20 mt-2"
         >
           <LogOut
             size={16}
             className="group-hover:-translate-x-1 transition-transform"
           />
-          Sign Out System
+          logout
         </button>
       </div>
     </aside>

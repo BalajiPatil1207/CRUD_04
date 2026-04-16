@@ -73,7 +73,12 @@ const login = async (req, res) => {
         }
 
         // Generate Token
-        const token = generateToken({ user_id: user.user_id, username: user.username, email: user.email });
+        const token = generateToken({ 
+            user_id: user.user_id, 
+            username: user.username, 
+            email: user.email,
+            role: user.role 
+        });
 
         // Exclude password from the user object
         const userData = user.toJSON();

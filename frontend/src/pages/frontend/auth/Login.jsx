@@ -15,24 +15,47 @@ const Login = () => {
   const [formData, setFormData] = useState({
     identifier: "",
     password: "",
+    rememberMe: false,
   });
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-    // Clear field error when user starts typing
-    if (errors[e.target.name]) {
-      setErrors((prev) => ({ ...prev, [e.target.name]: null }));
+    const { name, value, type, checked } = e.target;
+    setFormData({ 
+      ...formData, 
+      [name]: type === 'checkbox' ? checked : value 
+    });
+    
+    // Clear field error when user starts typing or clicking
+    if (errors[name]) {
+      setErrors((prev) => ({ ...prev, [name]: null }));
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Front-end validation
+    const newErrors = {};
+    if (!formData.identifier) newErrors.identifier = "Username/Email is required";
+    if (!formData.password) newErrors.password = "Password is required";
+    if (!formData.rememberMe) newErrors.rememberMe = "You must check this to login";
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
     setLoading(true);
     setErrors({});
     const result = await login(formData.identifier, formData.password);
     setLoading(false);
+    
     if (result.success) {
-      navigate("/admin/dashboard");
+      if (result.user.role === "admin") {
+        navigate("/admin/dashboard");
+      } else {
+        navigate("/");
+      }
     } else {
       setErrors(result.errors || {});
     }
@@ -58,7 +81,7 @@ const Login = () => {
             </p>
           </div>
 
-          <form className="space-y-6" onSubmit={handleSubmit}>
+          <form className="space-y-6" onSubmit={handleSubmit} noValidate>
             <Input
               label="Username or Email"
               name="identifier"
@@ -83,30 +106,45 @@ const Login = () => {
               required
             />
 
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <input
-                  id="remember-me"
-                  name="remember-me"
-                  type="checkbox"
-                  className="h-4 w-4 text-brand-600 focus:ring-brand-500 border-gray-300 rounded cursor-pointer"
-                />
-                <label
-                  htmlFor="remember-me"
-                  className="ml-2 block text-sm text-gray-600 dark:text-gray-400 cursor-pointer font-medium"
-                >
-                  Remember me
-                </label>
-              </div>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <input
+                    id="remember-me"
+                    name="rememberMe"
+                    type="checkbox"
+                    checked={formData.rememberMe}
+                    onChange={handleChange}
+                    className={`h-4 w-4 text-brand-600 focus:ring-brand-500 border-gray-300 rounded cursor-pointer transition-all duration-200 ${
+                      errors.rememberMe ? "border-red-500 ring-2 ring-red-500/20" : ""
+                    }`}
+                  />
+                  <label
+                    htmlFor="remember-me"
+                    className={`ml-2 block text-sm cursor-pointer font-medium transition-colors duration-200 ${
+                      errors.rememberMe
+                        ? "text-red-500"
+                        : "text-gray-600 dark:text-gray-400"
+                    }`}
+                  >
+                    Remember me
+                  </label>
+                </div>
 
-              <div className="text-sm">
-                <a
-                  href="#"
-                  className="font-semibold text-brand-600 hover:text-brand-500 transition-colors"
-                >
-                  Forgot password?
-                </a>
+                <div className="text-sm">
+                  <a
+                    href="#"
+                    className="font-semibold text-brand-600 hover:text-brand-500 transition-colors"
+                  >
+                    Forgot password?
+                  </a>
+                </div>
               </div>
+              {errors.rememberMe && (
+                <span className="text-[11px] font-bold text-red-500 ml-1 mt-1 animate-in fade-in slide-in-from-top-1 duration-300 block">
+                  {errors.rememberMe}
+                </span>
+              )}
             </div>
 
             <Button

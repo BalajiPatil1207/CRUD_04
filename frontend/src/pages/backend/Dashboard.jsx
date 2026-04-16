@@ -46,14 +46,6 @@ const Dashboard = () => {
       trend: "Growth 12%",
     },
     {
-      name: "System Uptime",
-      value: stats.uptime,
-      icon: ShieldCheck,
-      color: "text-amber-600",
-      bg: "bg-amber-50 dark:bg-amber-900/20",
-      trend: "Healthy",
-    },
-    {
       name: "Security",
       value: "Active",
       icon: Activity,

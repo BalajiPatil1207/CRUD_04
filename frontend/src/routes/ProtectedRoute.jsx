@@ -8,10 +8,16 @@ const ProtectedRoute = () => {
 
   if (!user) {
     // If not authenticated, redirect to login
+    return <Navigate to="/login" replace />;
+  }
+
+  // Role-based protection: Only admins can access the admin layout
+  if (user.role !== 'admin') {
+    // If authenticated but not an admin, redirect to home page
     return <Navigate to="/" replace />;
   }
 
-  // If authenticated, render the admin layout which contains the sidebar and child routes
+  // If authenticated and admin, render the admin layout
   return <AdminLayout />;
 };
 
