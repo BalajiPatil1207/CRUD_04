@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import Card from "../../components/common/Card";
 import Button from "../../components/common/Button";
-import { LayoutDashboard, LogIn, UserPlus, LogOut, Package, ShieldCheck } from "lucide-react";
+import { LayoutDashboard, LogIn, UserPlus, LogOut, Package, ShieldCheck, MessageSquare, Settings2 } from "lucide-react";
 import ThemeToggle from "../../components/common/ThemeToggle";
 
 const Index = () => {
@@ -56,16 +56,24 @@ const Index = () => {
                <h3 className="text-2xl font-black text-gray-900 dark:text-white mb-1 uppercase tracking-tighter">Welcome, {user.username}!</h3>
                <p className="text-gray-500 dark:text-slate-400 font-bold uppercase text-[10px] tracking-widest mb-6">Role: {user.role}</p>
                
-               {user.role === 'admin' ? (
-                 <Link to="/admin/dashboard">
-                   <Button variant="primary" size="lg" icon={LayoutDashboard} className="px-10">Enter Command Center</Button>
+               <div className="flex flex-col sm:flex-row gap-3">
+                 <Link to={user.role === 'admin' ? "/admin/dashboard" : "/chat"}>
+                   <Button variant="primary" size="lg" icon={user.role === 'admin' ? LayoutDashboard : MessageSquare} className="px-10">
+                     {user.role === 'admin' ? "Enter Command Center" : "Open Chat"}
+                   </Button>
                  </Link>
-               ) : (
-                 <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/20 rounded-xl">
-                    <ShieldCheck className="text-amber-600" size={16} />
-                    <span className="text-xs font-bold text-amber-600 dark:text-amber-400">Regular User Access (Admin Restricted)</span>
-                 </div>
-               )}
+                 <Link to="/settings">
+                   <Button variant="secondary" size="lg" icon={Settings2} className="px-10">
+                     Settings
+                   </Button>
+                 </Link>
+                 {user.role !== 'admin' && (
+                   <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/20 rounded-xl">
+                      <ShieldCheck className="text-amber-600" size={16} />
+                      <span className="text-xs font-bold text-amber-600 dark:text-amber-400">Friendly chat access enabled</span>
+                   </div>
+                 )}
+               </div>
             </Card>
           </div>
         ) : (

@@ -1,10 +1,13 @@
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import AdminLayout from '../components/layout/AdminLayout';
 
 const ProtectedRoute = () => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return <div className="p-8 text-center">Loading...</div>;
+  }
 
   if (!user) {
     // If not authenticated, redirect to login
@@ -13,12 +16,12 @@ const ProtectedRoute = () => {
 
   // Role-based protection: Only admins can access the admin layout
   if (user.role !== 'admin') {
-    // If authenticated but not an admin, redirect to home page
-    return <Navigate to="/" replace />;
+    // Send regular users to the friendly chat area instead of showing a hard error page
+    return <Navigate to="/chat" replace />;
   }
 
-  // If authenticated and admin, render the admin layout
-  return <AdminLayout />;
+  // If authenticated and admin, continue to the nested admin routes
+  return <Outlet />;
 };
 
 export default ProtectedRoute;

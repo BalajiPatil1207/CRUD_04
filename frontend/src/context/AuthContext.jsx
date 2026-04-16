@@ -1,22 +1,21 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+/* eslint-disable react-refresh/only-export-components */
+import React, { createContext, useContext, useState } from "react";
 import { Api, sessionStore, sessionRemove } from "../components/common/Api/api";
 import { useToast } from "../components/common/Toast";
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const { addToast } = useToast();
-
-  useEffect(() => {
-    // Check for existing user session from sessionStorage
-    const storedUser = sessionStorage.getItem("users");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
+  const [user, setUser] = useState(() => {
+    try {
+      const storedUser = sessionStorage.getItem("users");
+      return storedUser ? JSON.parse(storedUser) : null;
+    } catch {
+      return null;
     }
-    setLoading(false);
-  }, []);
+  });
+  const loading = false;
+  const { addToast } = useToast();
 
   const login = async (identifier, password) => {
     try {

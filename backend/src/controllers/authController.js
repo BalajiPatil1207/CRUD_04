@@ -63,6 +63,13 @@ const login = async (req, res) => {
             });
         }
 
+        if (user.isBlocked) {
+            return res.status(403).json({
+                status: false,
+                errors: { auth: "Your account is blocked by the admin" }
+            });
+        }
+
         // Check password
         const isMatch = await comparePassword(password, user.password);
         if (!isMatch) {

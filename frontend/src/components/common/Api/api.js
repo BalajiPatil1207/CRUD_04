@@ -78,11 +78,11 @@ Api.interceptors.response.use(
     },
     (error) => {
         if (error.response) {
-            // 401 - Token invalid / expired
-            if (error.response.status === 401) {
+            // 401/403 - Session invalid or blocked
+            if (error.response.status === 401 || error.response.status === 403) {
                 sessionStorage.removeItem("token");
                 sessionStorage.removeItem("users");
-                window.location.href = "/";
+                window.location.href = "/login";
             }
         }
 

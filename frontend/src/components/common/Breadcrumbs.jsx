@@ -9,9 +9,8 @@ const Breadcrumbs = () => {
   // Map of URL segments to readable labels for a cleaner UI
   const breadcrumbMap = {
     admin: "Home",
-    dashboard: "Analytics Overview",
-    product: "Product Catalog",
-    teacher: "Teacher Directory",
+    dashboard: "Command Center",
+    chat: "Secure Messaging",
     create: "New Entry",
     edit: "Update Details",
   };

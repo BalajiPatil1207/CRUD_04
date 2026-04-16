@@ -6,8 +6,7 @@ import {
   MessageSquare,
   LogOut,
   User as UserIcon,
-  ChevronRight,
-  ShieldAlert,
+  Package,
 } from "lucide-react";
 import ThemeToggle from "../common/ThemeToggle";
 

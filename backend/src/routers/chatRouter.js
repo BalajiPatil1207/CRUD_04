@@ -15,4 +15,22 @@ router.get('/users', authenticateToken, chatController.getUsers);
  */
 router.get('/messages/:receiverId', authenticateToken, chatController.getMessages);
 
+/**
+ * @route PATCH /api/chat/messages/:messageId
+ * @desc Edit a message
+ */
+router.patch('/messages/:messageId', authenticateToken, chatController.updateMessage);
+
+/**
+ * @route DELETE /api/chat/messages/:messageId
+ * @desc Delete a message
+ */
+router.delete('/messages/:messageId', authenticateToken, chatController.deleteMessage);
+
+/**
+ * @route PATCH /api/chat/users/:userId/block
+ * @desc Block or unblock a user
+ */
+router.patch('/users/:userId/block', authenticateToken, chatController.toggleBlockUser);
+
 module.exports = router;
