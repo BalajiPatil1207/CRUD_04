@@ -3,10 +3,11 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import {
   LayoutDashboard,
-  Package,
+  MessageSquare,
   LogOut,
   User as UserIcon,
   ChevronRight,
+  ShieldAlert,
 } from "lucide-react";
 import ThemeToggle from "../common/ThemeToggle";
 
@@ -17,7 +18,7 @@ const Sidebar = () => {
 
   const menuItems = [
     { name: "Dashboard", path: "/admin/dashboard", icon: LayoutDashboard },
-    { name: "Product Catalog", path: "/admin/product", icon: Package },
+    { name: "Secure Chat", path: "/admin/chat", icon: MessageSquare },
   ];
 
   const isActive = (path) => {
