@@ -103,7 +103,7 @@ const getMessages = async (req, res) => {
 
         // Mark incoming messages as seen
         await Message.update(
-            { isSeen: true },
+            { isSeen: true, deliveredAt: new Date() },
             {
                 where: {
                     senderId: receiverId,
@@ -118,7 +118,8 @@ const getMessages = async (req, res) => {
             if (Number(data.senderId) === Number(receiverId) && Number(data.receiverId) === Number(senderId)) {
                 return {
                     ...data,
-                    isSeen: true
+                    isSeen: true,
+                    deliveredAt: data.deliveredAt || new Date().toISOString()
                 };
             }
 

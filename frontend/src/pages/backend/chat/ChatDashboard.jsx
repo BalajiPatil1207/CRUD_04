@@ -67,12 +67,15 @@ const ChatDashboard = () => {
   const [editingMessageId, setEditingMessageId] = useState(null);
   const [isSavingMessage, setIsSavingMessage] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [privacyShieldActive, setPrivacyShieldActive] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const typingTimeoutRef = useRef(null);
   const highlightTimeoutRef = useRef(null);
   const usersRef = useRef([]);
   const settingsRef = useRef(chatSettings);
   const messagesEndRef = useRef(null);
+  const originalTitleRef = useRef(document.title);
 
   const selectedUser = users.find((contact) => contact.user_id === selectedUserId) || null;
 
@@ -90,6 +93,23 @@ const ChatDashboard = () => {
     window.addEventListener("storage", handleStorage);
     return () => window.removeEventListener("storage", handleStorage);
   }, [user?.user_id]);
+
+  useEffect(() => {
+    const updateShield = () => {
+      setPrivacyShieldActive(document.hidden || !document.hasFocus());
+    };
+
+    updateShield();
+    document.addEventListener("visibilitychange", updateShield);
+    window.addEventListener("blur", updateShield);
+    window.addEventListener("focus", updateShield);
+
+    return () => {
+      document.removeEventListener("visibilitychange", updateShield);
+      window.removeEventListener("blur", updateShield);
+      window.removeEventListener("focus", updateShield);
+    };
+  }, []);
 
   const clearConversationState = (contactId) => {
     setUnreadByUser((prev) => {
@@ -132,6 +152,33 @@ const ChatDashboard = () => {
     socket.connect();
     return () => socket.disconnect();
   }, [addToast]);
+
+  useEffect(() => {
+    let active = true;
+
+    const syncPresence = async () => {
+      try {
+        const response = await Api.get("/chat/users");
+        if (!active) return;
+        setUsers(response.data.data);
+      } catch (error) {
+        console.error("Failed to sync presence", error);
+      }
+    };
+
+    const handleFocus = () => {
+      syncPresence();
+    };
+
+    const intervalId = window.setInterval(syncPresence, 15000);
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      active = false;
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, []);
 
   useEffect(() => {
     const handleReceiveMessage = (data) => {
@@ -202,9 +249,29 @@ const ChatDashboard = () => {
       setMessages((prev) => prev.map((message) => (message.message_id === updatedMessage.message_id ? updatedMessage : message)));
       refreshUsers();
     };
-    const handleMessageDeleted = ({ messageId }) => {
-      setMessages((prev) => prev.filter((message) => message.message_id !== messageId));
+    const handleMessageDeleted = ({ messageId, messageIds }) => {
+      const ids = Array.isArray(messageIds)
+        ? messageIds.map(Number)
+        : messageId != null
+          ? [Number(messageId)]
+          : [];
+
+      if (ids.length === 0) return;
+
+      setMessages((prev) => prev.filter((message) => !ids.includes(message.message_id)));
       refreshUsers();
+    };
+
+    const handleMessageDelivered = ({ messageId, deliveredAt }) => {
+      if (!messageId) return;
+
+      setMessages((prev) =>
+        prev.map((message) =>
+          message.message_id === messageId
+            ? { ...message, deliveredAt: deliveredAt || message.deliveredAt || new Date().toISOString() }
+            : message
+        )
+      );
     };
 
     const handleMessagesSeen = ({ conversationUserId, seenMessageIds }) => {
@@ -213,7 +280,7 @@ const ChatDashboard = () => {
       setMessages((prev) =>
         prev.map((message) =>
           seenMessageIds.includes(message.message_id)
-            ? { ...message, isSeen: true }
+            ? { ...message, isSeen: true, deliveredAt: message.deliveredAt || new Date().toISOString() }
             : message
         )
       );
@@ -238,6 +305,7 @@ const ChatDashboard = () => {
     socket.on("message_error", handleMessageError);
     socket.on("message_updated", handleMessageUpdated);
     socket.on("message_deleted", handleMessageDeleted);
+    socket.on("message_delivered", handleMessageDelivered);
     socket.on("messages_seen", handleMessagesSeen);
 
     return () => {
@@ -248,6 +316,7 @@ const ChatDashboard = () => {
       socket.off("message_error", handleMessageError);
       socket.off("message_updated", handleMessageUpdated);
       socket.off("message_deleted", handleMessageDeleted);
+      socket.off("message_delivered", handleMessageDelivered);
       socket.off("messages_seen", handleMessagesSeen);
     };
   }, [selectedUserId, user.user_id, addToast]);
@@ -279,6 +348,16 @@ const ChatDashboard = () => {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isRecipientTyping]);
+
+  useEffect(() => {
+    const originalTitle = originalTitleRef.current;
+    const unreadTotal = Object.values(unreadByUser).reduce((sum, count) => sum + Number(count || 0), 0);
+    document.title = unreadTotal > 0 ? `(${unreadTotal}) New chat message` : originalTitle;
+
+    return () => {
+      document.title = originalTitle;
+    };
+  }, [unreadByUser]);
 
   const handleSelectUser = (contact) => {
     setSelectedUserId(contact.user_id);
@@ -368,14 +447,21 @@ const ChatDashboard = () => {
   };
 
   const handleDeleteMessage = async (messageId) => {
-    if (!window.confirm("Delete this message?")) return;
     try {
       await Api.delete(`/chat/messages/${messageId}`);
       setMessages((prev) => prev.filter((message) => message.message_id !== messageId));
       await refreshUsers();
+      setDeleteTarget(null);
     } catch (error) {
       console.error("Failed to delete message", error);
       addToast("Could not delete message", "danger");
+    }
+  };
+
+  const handleCaptureBlock = (event) => {
+    if (selectedUser) {
+      event.preventDefault();
+      addToast("Copy and capture are disabled in chat", "warning");
     }
   };
 
@@ -428,7 +514,7 @@ const ChatDashboard = () => {
           <div className="flex items-center justify-between gap-2">
             <p className={`font-semibold truncate ${isActive ? "text-slate-900 dark:text-white" : "text-slate-800 dark:text-slate-100"}`}>{contact.username}</p>
             <span className="text-[10px] text-slate-400 dark:text-slate-500 shrink-0">
-              {contact.lastMessageAt ? new Date(contact.lastMessageAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}
+              {contact.lastMessageAt ? new Date(contact.lastMessageAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: true }) : ""}
             </span>
           </div>
           <div className="mt-1 flex items-center justify-between gap-3">
@@ -438,6 +524,10 @@ const ChatDashboard = () => {
             {unreadCount > 0 && !isActive ? <span className="shrink-0 min-w-6 h-6 px-1.5 inline-flex items-center justify-center rounded-full bg-[#25d366] text-white text-[10px] font-black">{unreadCount}</span> : null}
           </div>
           <div className="mt-1.5 flex items-center gap-2 flex-wrap">
+            <span className={`inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest ${contact.isOnline ? "text-emerald-600" : "text-slate-400"}`}>
+              <span className={`h-2 w-2 rounded-full ${contact.isOnline ? "bg-emerald-500" : "bg-slate-400"}`} />
+              {contact.isOnline ? "Online" : "Offline"}
+            </span>
             {isPinned && <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-[#00a884]"><Pin size={10} />Pinned</span>}
             {contact.isBlocked && <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-red-500"><Ban size={10} />Blocked</span>}
             {chatSettings.mutedContacts.includes(contact.user_id) && <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-amber-600"><VolumeX size={10} />Muted</span>}
@@ -454,6 +544,8 @@ const ChatDashboard = () => {
       : "bg-white dark:bg-[#202c33] text-slate-800 dark:text-slate-100 rounded-tl-[6px] border border-black/5 dark:border-white/10";
     const rowClass = "flex " + (isMine ? "justify-end" : "justify-start") + " animate-in slide-in-from-bottom-2 duration-300";
     const footerClass = "mt-1.5 flex items-center gap-1.5 " + (isMine ? "justify-end" : "justify-start");
+    const hasDelivered = Boolean(msg.deliveredAt);
+    const hasSeen = Boolean(msg.isSeen);
 
     return (
       <div key={msg.message_id || msg.id || index} className={rowClass}>
@@ -461,14 +553,22 @@ const ChatDashboard = () => {
           {isMine && (
             <div className="absolute -top-3 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               <button type="button" onClick={() => startEditMessage(msg)} className="h-7 w-7 rounded-full bg-white text-slate-700 shadow flex items-center justify-center"><Pencil size={12} /></button>
-              <button type="button" onClick={() => handleDeleteMessage(msg.message_id)} className="h-7 w-7 rounded-full bg-white text-red-600 shadow flex items-center justify-center"><Trash2 size={12} /></button>
+              <button type="button" onClick={() => setDeleteTarget(msg)} className="h-7 w-7 rounded-full bg-white text-red-600 shadow flex items-center justify-center"><Trash2 size={12} /></button>
             </div>
           )}
           <p className="text-[15px] leading-relaxed whitespace-pre-wrap">{msg.message}</p>
           <div className={footerClass}>
-            <span className="text-[10px] text-current/60">{new Date(msg.createdAt || msg.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+            <span className="text-[10px] text-current/60">{new Date(msg.createdAt || msg.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: true })}</span>
             {msg.editedAt && <span className="text-[9px] font-bold uppercase tracking-widest text-current/50">edited</span>}
-            {isMine && (msg.isSeen ? <CheckCheck size={13} className="text-[#53bdeb]" /> : <Check size={13} className="text-current/50" />)}
+            {isMine && (
+              hasSeen ? (
+                <CheckCheck size={13} className="text-[#53bdeb]" />
+              ) : hasDelivered ? (
+                <CheckCheck size={13} className="text-current/50" />
+              ) : (
+                <Check size={13} className="text-current/50" />
+              )
+            )}
           </div>
         </div>
       </div>
@@ -476,12 +576,17 @@ const ChatDashboard = () => {
   };
 
   return (
-    <div className="relative h-[calc(100vh-140px)] overflow-hidden rounded-[28px] border border-white/60 dark:border-slate-800 shadow-2xl shadow-black/10">
+    <div
+      className={`relative h-[calc(100dvh-2rem)] min-h-[calc(100dvh-2rem)] overflow-hidden rounded-[28px] border border-white/60 dark:border-slate-800 shadow-2xl shadow-black/10 select-none ${privacyShieldActive ? "privacy-shield-active" : ""}`}
+      onContextMenu={handleCaptureBlock}
+      onCopy={handleCaptureBlock}
+      onCut={handleCaptureBlock}
+    >
       <div className="absolute inset-0 bg-[#efeae2] dark:bg-[#0b141a]" />
       <div className="absolute inset-0 opacity-40 dark:opacity-20 bg-[radial-gradient(circle_at_top_left,rgba(37,211,102,0.25),transparent_30%),radial-gradient(circle_at_top_right,rgba(13,148,136,0.16),transparent_22%),radial-gradient(circle_at_bottom_left,rgba(16,185,129,0.12),transparent_28%)]" />
       <div className="absolute inset-0 opacity-[0.07] dark:opacity-[0.08] bg-[linear-gradient(rgba(0,0,0,0.75)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,0.75)_1px,transparent_1px)] bg-[size:22px_22px]" />
 
-      <div className="relative z-10 flex h-full">
+      <div className="relative z-10 flex h-full min-h-0">
         <div className={`absolute inset-0 z-20 md:hidden transition-opacity duration-300 ${mobileSidebarOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}>
           <button
             type="button"
@@ -490,7 +595,7 @@ const ChatDashboard = () => {
             className="absolute inset-0 bg-black/40"
           />
           <aside
-            className={`relative z-10 h-full w-[88%] max-w-[360px] border-r border-black/5 dark:border-white/10 bg-white/95 dark:bg-[#111b21]/95 backdrop-blur-xl flex flex-col transition-transform duration-300 ${mobileSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
+          className={`relative z-10 h-full min-h-0 w-[88%] max-w-[360px] border-r border-black/5 dark:border-white/10 bg-white/95 dark:bg-[#111b21]/95 backdrop-blur-xl flex flex-col transition-transform duration-300 ${mobileSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
           >
             <div className="bg-[#00a884] px-5 py-4 text-white">
               <div className="flex items-center justify-between gap-3">
@@ -526,7 +631,7 @@ const ChatDashboard = () => {
           </aside>
         </div>
 
-        <aside className="hidden md:flex w-[340px] min-w-[300px] max-w-[360px] border-r border-black/5 dark:border-white/10 bg-white/85 dark:bg-[#111b21]/95 backdrop-blur-xl flex-col">
+        <aside className="hidden md:flex w-[340px] min-w-[300px] max-w-[360px] h-full min-h-0 border-r border-black/5 dark:border-white/10 bg-white/85 dark:bg-[#111b21]/95 backdrop-blur-xl flex-col">
           <div className="bg-[#00a884] px-5 py-4 text-white">
             <div className="flex items-center justify-between gap-3">
               <div>
@@ -560,7 +665,20 @@ const ChatDashboard = () => {
           </div>
         </aside>
 
-        <main className="flex-1 flex flex-col bg-[#efeae2] dark:bg-[#0b141a]">
+        <main className={`relative flex-1 min-h-0 flex flex-col bg-[#efeae2] dark:bg-[#0b141a] ${privacyShieldActive ? "blur-[10px] saturate-50" : ""}`}>
+          {selectedUser && (
+            <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden opacity-[0.08] dark:opacity-[0.12]">
+              <div className="absolute -top-10 left-6 rotate-[-18deg] text-[10px] font-black uppercase tracking-[0.35em] text-slate-700 dark:text-slate-100 whitespace-nowrap">
+                {user?.username} • {user?.email || "private"}
+              </div>
+              <div className="absolute top-24 right-4 rotate-[-18deg] text-[10px] font-black uppercase tracking-[0.35em] text-slate-700 dark:text-slate-100 whitespace-nowrap">
+                {user?.username} • {user?.email || "private"}
+              </div>
+              <div className="absolute bottom-16 left-10 rotate-[-18deg] text-[10px] font-black uppercase tracking-[0.35em] text-slate-700 dark:text-slate-100 whitespace-nowrap">
+                {user?.username} • {user?.email || "private"}
+              </div>
+            </div>
+          )}
           {selectedUser ? (
             <>
               <div className="h-16 px-5 py-3 flex items-center justify-between bg-[#f0f2f5]/95 dark:bg-[#202c33]/95 border-b border-black/5 dark:border-white/10 backdrop-blur-xl">
@@ -579,7 +697,10 @@ const ChatDashboard = () => {
                   </div>
                   <div className="min-w-0">
                     <h3 className="text-base md:text-lg font-semibold text-slate-900 dark:text-white truncate">{selectedUser.username}</h3>
-                    <p className="text-[12px] text-slate-500 dark:text-slate-400 truncate">{selectedConversationStatus}</p>
+                    <div className="mt-1 inline-flex items-center gap-2 rounded-full bg-white/80 dark:bg-white/5 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                      <span className={`h-2.5 w-2.5 rounded-full ${selectedUser.isBlocked ? "bg-red-500" : selectedUser.isOnline ? "bg-emerald-500" : "bg-slate-400"}`} />
+                      {selectedConversationStatus || "Select chat"}
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -656,6 +777,61 @@ const ChatDashboard = () => {
             </div>
           )}
         </main>
+
+        {privacyShieldActive && selectedUser && (
+          <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/30 backdrop-blur-[2px] pointer-events-none">
+            <div className="max-w-sm rounded-3xl border border-white/10 bg-slate-950/85 px-6 py-5 text-center text-white shadow-2xl">
+              <p className="text-[10px] font-black uppercase tracking-[0.35em] text-emerald-300">
+                Privacy Shield Active
+              </p>
+              <h3 className="mt-2 text-xl font-black">Chat hidden while inactive</h3>
+              <p className="mt-2 text-sm text-white/70">
+                This view blurs automatically when you switch tabs, minimize, or lose focus.
+              </p>
+              <p className="mt-3 text-[10px] uppercase tracking-[0.2em] text-white/50">
+                Screen recording and screenshots cannot be fully blocked in a browser
+              </p>
+            </div>
+          </div>
+        )}
+
+        {deleteTarget && (
+          <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/55 backdrop-blur-sm px-4">
+            <div className="w-full max-w-md rounded-[28px] border border-white/10 bg-slate-950 text-white shadow-2xl p-6 md:p-8">
+              <div className="w-14 h-14 rounded-2xl bg-red-500/15 text-red-400 flex items-center justify-center mb-4">
+                <Trash2 size={24} />
+              </div>
+              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-red-300">
+                Delete message
+              </p>
+              <h3 className="mt-2 text-2xl font-black tracking-tight">
+                Remove this message?
+              </h3>
+              <p className="mt-3 text-sm text-white/70 leading-relaxed">
+                This will delete the message for both sides. This action cannot be undone.
+              </p>
+
+              <div className="mt-6 grid grid-cols-2 gap-3">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="bg-white/10 hover:bg-white/15 text-white border border-white/10"
+                  onClick={() => setDeleteTarget(null)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  variant="danger"
+                  className="bg-red-500 hover:bg-red-600 text-white"
+                  onClick={() => handleDeleteMessage(deleteTarget.message_id)}
+                >
+                  Delete
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

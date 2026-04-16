@@ -236,6 +236,7 @@ const Dashboard = () => {
                       {new Date(activity.timestamp).toLocaleTimeString([], {
                         hour: "2-digit",
                         minute: "2-digit",
+                        hour12: true,
                       })}
                     </span>
                   </div>

@@ -12,6 +12,7 @@ const { verifyToken } = require('./src/helper/authHelper');
 const {
   registerSocket,
   unregisterSocket,
+  isUserOnline,
 } = require('./src/services/presenceStore');
 const { setIo } = require('./src/services/socketNotifier');
 
@@ -121,14 +122,24 @@ io.on('connection', (socket) => {
         receiverId,
         message
       });
+      const receiverIsOnline = isUserOnline(Number(receiverId));
+
+      if (receiverIsOnline) {
+        newMessage.deliveredAt = new Date();
+        await newMessage.save();
+      }
+
       const payload = newMessage.toJSON ? newMessage.toJSON() : newMessage;
-      io.to(`user_${senderId}`).emit('receive_message', newMessage);
-      io.to(`user_${receiverId}`).emit('receive_message', newMessage);
-      io.to(`user_${senderId}`).emit('message_delivered', {
-        messageId: payload.message_id,
-        receiverId: Number(receiverId),
-        deliveredAt: payload.createdAt || payload.timestamp,
-      });
+      io.to(`user_${senderId}`).emit('receive_message', payload);
+      io.to(`user_${receiverId}`).emit('receive_message', payload);
+
+      if (receiverIsOnline) {
+        io.to(`user_${senderId}`).emit('message_delivered', {
+          messageId: payload.message_id,
+          receiverId: Number(receiverId),
+          deliveredAt: payload.deliveredAt || payload.createdAt || payload.timestamp,
+        });
+      }
     } catch (err) {
       console.error("Error saving message:", err);
     }

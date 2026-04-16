@@ -26,6 +26,11 @@ const Message = sequelize.define(
       allowNull: false,
       defaultValue: false,
     },
+    deliveredAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      defaultValue: null,
+    },
     editedAt: {
       type: DataTypes.DATE,
       allowNull: true,
