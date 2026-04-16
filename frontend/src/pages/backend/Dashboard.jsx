@@ -8,7 +8,6 @@ const Dashboard = () => {
   return (
     <div className="flex flex-col items-center justify-center min-h-[50vh] space-y-4">
       <h1 className="text-2xl font-bold">Dashboard (Protected)</h1>
-      <Link to="/admin/teacher" className="text-blue-600 hover:underline">Teacher List</Link>
       <Link to="/admin/product" className="text-blue-600 hover:underline">Product List</Link>
       <p className="text-gray-600">Welcome, {user?.name}!</p>
       <button

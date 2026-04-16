@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const { connectSQLite, sequelize } = require('./src/config/sqliteDB');
+const { connectSQLite } = require('./src/config/sqliteDB');
 
 const authRouter = require('./src/routers/authRouter');
 const productRouter = require('./src/routers/productRouter');
@@ -27,9 +27,6 @@ app.use('/api/product', productRouter);
 const startServer = async () => {
     try {
         await connectSQLite();
-        // sync({ alter: true }) ensures the table is created/updated without dropping data
-        await sequelize.sync({ alter: true });
-        console.log('Database synced successfully.');
         
         app.listen(port, () => {
             console.log(`Server listening at http://localhost:${port}`);

@@ -6,9 +6,6 @@ import PublicRoute from "./routes/PublicRoute";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import Login from "./pages/frontend/auth/Login";
 import Dashboard from "./pages/backend/Dashboard";
-import TeacherIndex from "./pages/backend/teacher/TeacherIndex";
-import TeacherCreate from "./pages/backend/teacher/TeacherCreate";
-import TeacherEdit from "./pages/backend/teacher/TeacherEdit";
 import ProductIndex from "./pages/backend/product/ProductIndex";
 import ProductCreate from "./pages/backend/product/ProductCreate";
 import ProductEdit from "./pages/backend/product/ProductEdit";
@@ -32,9 +29,6 @@ function App() {
               {/* Protected Routes */}
               <Route path="/admin/" element={<ProtectedRoute />}>
                 <Route path="dashboard" element={<Dashboard />} />
-                <Route path="teacher" element={<TeacherIndex />} />
-                <Route path="teacher/create" element={<TeacherCreate />} />
-                <Route path="teacher/edit/:id" element={<TeacherEdit />} />
                 <Route path="product" element={<ProductIndex />} />
                 <Route path="product/create" element={<ProductCreate />} />
                 <Route path="product/edit/:id" element={<ProductEdit />} />

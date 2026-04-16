@@ -6,10 +6,13 @@ import Card from "../../../components/common/Card";
 import Button from "../../../components/common/Button";
 import Table from "../../../components/common/Table";
 import { Plus, Edit, Trash2, Package, Search } from "lucide-react";
+import ConfirmModal from "../../../components/common/ConfirmModal";
 
 const ProductIndex = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [deleteModal, setDeleteModal] = useState({ isOpen: false, id: null });
+  const [isDeleting, setIsDeleting] = useState(false);
   const { addToast } = useToast();
 
   const fetchProducts = async () => {
@@ -28,19 +31,28 @@ const ProductIndex = () => {
     fetchProducts();
   }, []);
 
-  const handleDelete = async (id) => {
-    if (window.confirm("Are you sure you want to delete this product?")) {
-      try {
-        await Api.delete(`/product/${id}`);
-        addToast("Product deleted successfully", "success");
-        fetchProducts();
-      } catch (error) {
-        addToast("Failed to delete product", "danger");
-      }
+  const handleDeleteClick = (id) => {
+    setDeleteModal({ isOpen: true, id });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteModal.id) return;
+    
+    setIsDeleting(true);
+    try {
+      await Api.delete(`/product/${deleteModal.id}`);
+      addToast("Product deleted successfully", "success");
+      setDeleteModal({ isOpen: false, id: null });
+      fetchProducts();
+    } catch (error) {
+      addToast("Failed to delete product", "danger");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
   const columns = [
+    // ... (Name and Price columns omitted for brevity in thought, but included in actual replacement)
     { 
         header: "Product Name", 
         accessor: "name", 
@@ -81,15 +93,15 @@ const ProductIndex = () => {
                 variant="secondary" 
                 size="sm" 
                 icon={Edit} 
-                className="hover:text-blue-600 dark:hover:text-blue-400"
+                className="hover:text-blue-600 dark:hover:text-blue-400 cursor-pointer"
             />
           </Link>
           <Button
             variant="secondary"
             size="sm"
             icon={Trash2}
-            className="hover:text-red-600 dark:hover:text-red-400"
-            onClick={() => handleDelete(id)}
+            className="hover:text-red-600 dark:hover:text-red-400 cursor-pointer"
+            onClick={() => handleDeleteClick(id)}
           />
         </div>
       ),
@@ -108,7 +120,7 @@ const ProductIndex = () => {
           </p>
         </div>
         <Link to="/admin/product/create">
-          <Button variant="primary" size="lg" icon={Plus} className="shadow-premium">
+          <Button variant="primary" size="lg" icon={Plus} className="shadow-premium cursor-pointer">
             Add New Product
           </Button>
         </Link>
@@ -139,6 +151,17 @@ const ProductIndex = () => {
             />
         </div>
       </Card>
+
+      <ConfirmModal
+        isOpen={deleteModal.isOpen}
+        onClose={() => setDeleteModal({ isOpen: false, id: null })}
+        onConfirm={handleConfirmDelete}
+        title="Delete Product"
+        message="Are you sure you want to delete this product? This action cannot be undone."
+        confirmText="Delete Product"
+        isLoading={isDeleting}
+        variant="danger"
+      />
     </div>
   );
 };
