@@ -119,6 +119,7 @@ const ProductIndex = () => {
             Manage your store inventory and product details
           </p>
         </div>
+        <Link to={"/admin/dashboard"}>Back</Link>
         <Link to="/admin/product/create">
           <Button variant="primary" size="lg" icon={Plus} className="shadow-premium cursor-pointer">
             Add New Product

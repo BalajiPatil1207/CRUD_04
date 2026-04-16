@@ -5,6 +5,7 @@ const { connectSQLite } = require('./src/config/sqliteDB');
 
 const authRouter = require('./src/routers/authRouter');
 const productRouter = require('./src/routers/productRouter');
+const statsRouter = require('./src/routers/statsRouter');
 require('./src/models/productModel');
 
 const app = express();
@@ -22,6 +23,7 @@ app.get('/', (req, res) => {
 // Authentication Routes
 app.use('/api/auth', authRouter);
 app.use('/api/product', productRouter);
+app.use('/api/stats', statsRouter);
 
 // Start Server and Sync Database
 const startServer = async () => {

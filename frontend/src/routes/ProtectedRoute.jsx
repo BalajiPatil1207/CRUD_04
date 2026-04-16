@@ -1,6 +1,7 @@
 import React from 'react';
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import AdminLayout from '../components/layout/AdminLayout';
 
 const ProtectedRoute = () => {
   const { user } = useAuth();
@@ -10,8 +11,8 @@ const ProtectedRoute = () => {
     return <Navigate to="/" replace />;
   }
 
-  // If authenticated, render the child routes
-  return <Outlet />;
+  // If authenticated, render the admin layout which contains the sidebar and child routes
+  return <AdminLayout />;
 };
 
 export default ProtectedRoute;
