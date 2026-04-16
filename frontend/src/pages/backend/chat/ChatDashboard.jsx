@@ -1,64 +1,59 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../../context/AuthContext";
 import { socket, syncSocketAuth } from "../../../components/chat/socket";
 import { Api } from "../../../components/common/Api/api";
-import Card from "../../../components/common/Card";
 import Button from "../../../components/common/Button";
 import { useToast } from "../../../components/common/Toast";
 import { getChatSettings, toggleHiddenContact, togglePinnedContact } from "../../../components/chat/chatSettings";
 import {
-  Send,
-  User as UserIcon,
-  Hash,
-  Search,
-  MoreVertical,
-  Paperclip,
-  Smile,
-  ShieldCheck,
   Activity,
+  Ban,
   Check,
   CheckCheck,
-  Ban,
-  MessageSquare,
-  Wifi,
-  WifiOff,
-  Sparkles,
-  Settings2,
   EyeOff,
-  VolumeX,
+  MessageSquare,
+  MoreVertical,
+  Paperclip,
   Pencil,
-  Trash2,
-  X,
+  Menu,
   Pin,
   PinOff,
+  Search,
+  Send,
+  Settings2,
+  ShieldCheck,
+  Smile,
+  Sparkles,
+  Trash2,
+  User as UserIcon,
+  VolumeX,
+  Wifi,
+  X,
 } from "lucide-react";
 
-const QUICK_EMOJIS = ["😊", "😂", "😍", "🔥", "👍", "🙏", "💯", "🥳", "💬", "✨"];
+const QUICK_EMOJIS = ["\u{1F60A}", "\u{1F602}", "\u{1F60D}", "\u{1F525}", "\u{1F44D}", "\u{1F64F}", "\u{1F4AF}", "\u{1F973}", "\u{1F4AC}", "\u2728"];
 
 const playSound = () => {
   const AudioContextClass = window.AudioContext || window.webkitAudioContext;
   if (!AudioContextClass) return;
-
   const context = new AudioContextClass();
   const oscillator = context.createOscillator();
   const gainNode = context.createGain();
-
   oscillator.type = "sine";
   oscillator.frequency.value = 880;
   gainNode.gain.value = 0.04;
-
   oscillator.connect(gainNode);
   gainNode.connect(context.destination);
   oscillator.start();
   oscillator.stop(context.currentTime + 0.12);
-
   oscillator.onended = () => context.close();
 };
 
 const ChatDashboard = () => {
   const { user } = useAuth();
   const { addToast } = useToast();
+
   const [users, setUsers] = useState([]);
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -71,6 +66,8 @@ const ChatDashboard = () => {
   const [chatSettings, setChatSettings] = useState(() => getChatSettings(user?.user_id));
   const [editingMessageId, setEditingMessageId] = useState(null);
   const [isSavingMessage, setIsSavingMessage] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
   const typingTimeoutRef = useRef(null);
   const highlightTimeoutRef = useRef(null);
   const usersRef = useRef([]);
@@ -89,11 +86,7 @@ const ChatDashboard = () => {
 
   useEffect(() => {
     if (!user?.user_id) return undefined;
-
-    const handleStorage = () => {
-      setChatSettings(getChatSettings(user.user_id));
-    };
-
+    const handleStorage = () => setChatSettings(getChatSettings(user.user_id));
     window.addEventListener("storage", handleStorage);
     return () => window.removeEventListener("storage", handleStorage);
   }, [user?.user_id]);
@@ -105,56 +98,8 @@ const ChatDashboard = () => {
       delete next[contactId];
       return next;
     });
-
-    setUsers((prev) =>
-      prev.map((contact) =>
-        contact.user_id === contactId ? { ...contact, unreadCount: 0 } : contact
-      )
-    );
-
+    setUsers((prev) => prev.map((contact) => (contact.user_id === contactId ? { ...contact, unreadCount: 0 } : contact)));
     setHighlightedUserId((prev) => (prev === contactId ? null : prev));
-  };
-
-  const handleSelectUser = (contact) => {
-    setSelectedUserId(contact.user_id);
-    setIsRecipientTyping(false);
-    clearConversationState(contact.user_id);
-    setShowEmojiPicker(false);
-  };
-
-  const handleHideContact = (contactId) => {
-    if (!user?.user_id) return;
-
-    const next = toggleHiddenContact(user.user_id, contactId);
-    setChatSettings(next);
-    setShowEmojiPicker(false);
-
-    if (selectedUserId === contactId) {
-      setSelectedUserId(null);
-      setMessages([]);
-    }
-
-    addToast(
-      next.hiddenContacts.includes(Number(contactId))
-        ? "Conversation hidden from your sidebar"
-        : "Conversation restored to your sidebar",
-      "info"
-    );
-  };
-
-  const handlePinContact = (contactId) => {
-    if (!user?.user_id) return;
-
-    const next = togglePinnedContact(user.user_id, contactId);
-    setChatSettings(next);
-    setShowEmojiPicker(false);
-
-    addToast(
-      next.pinnedContacts.includes(Number(contactId))
-        ? "Conversation pinned to the top"
-        : "Conversation unpinned",
-      "info"
-    );
   };
 
   const refreshUsers = async () => {
@@ -166,31 +111,13 @@ const ChatDashboard = () => {
     }
   };
 
-  const startEditMessage = (message) => {
-    setEditingMessageId(message.message_id);
-    setNewMessage(message.message);
-    setShowEmojiPicker(false);
-  };
-
-  const cancelEditMessage = () => {
-    setEditingMessageId(null);
-    setNewMessage("");
-  };
-
-  const appendEmoji = (emoji) => {
-    setNewMessage((prev) => `${prev}${emoji}`);
-  };
-
   useEffect(() => {
     const fetchUsers = async () => {
       try {
         const response = await Api.get("/chat/users");
         setUsers(response.data.data);
-
         const initialUnread = response.data.data.reduce((acc, contact) => {
-          if (contact.unreadCount > 0) {
-            acc[contact.user_id] = contact.unreadCount;
-          }
+          if (contact.unreadCount > 0) acc[contact.user_id] = contact.unreadCount;
           return acc;
         }, {});
         setUnreadByUser(initialUnread);
@@ -201,7 +128,6 @@ const ChatDashboard = () => {
     };
 
     fetchUsers();
-
     syncSocketAuth();
     socket.connect();
     return () => socket.disconnect();
@@ -235,119 +161,104 @@ const ChatDashboard = () => {
       );
 
       if (incomingIsSelected) {
-        setMessages((prev) => {
-          if (prev.some((msg) => msg.message_id === data.message_id)) return prev;
-          return [...prev, data];
-        });
-
-        if (data.senderId === selectedUserId) {
-          setIsRecipientTyping(false);
-        }
-
+        setMessages((prev) => (prev.some((msg) => msg.message_id === data.message_id) ? prev : [...prev, data]));
+        if (data.senderId === selectedUserId) setIsRecipientTyping(false);
         clearConversationState(data.senderId);
         return;
       }
 
       if (data.senderId !== user.user_id) {
-        setUnreadByUser((prev) => ({
-          ...prev,
-          [data.senderId]: (prev[data.senderId] || 0) + 1,
-        }));
-
+        setUnreadByUser((prev) => ({ ...prev, [data.senderId]: (prev[data.senderId] || 0) + 1 }));
         setHighlightedUserId(data.senderId);
-
-        if (highlightTimeoutRef.current) {
-          clearTimeout(highlightTimeoutRef.current);
-        }
-
+        if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current);
         highlightTimeoutRef.current = setTimeout(() => {
           setHighlightedUserId((prev) => (prev === data.senderId ? null : prev));
         }, 1800);
-
         const senderName = usersRef.current.find((contact) => contact.user_id === data.senderId)?.username || "A user";
-
         if (shouldNotify && !isMutedContact) {
           addToast(`${senderName} sent a new message`, "info");
-
           if ("Notification" in window && Notification.permission === "granted") {
-            new Notification(`New message from ${senderName}`, {
-              body: data.message,
-            });
+            new Notification(`New message from ${senderName}`, { body: data.message });
           }
         }
-
-        if (shouldSound && !isMutedContact) {
-          playSound();
-        }
+        if (shouldSound && !isMutedContact) playSound();
       }
     };
 
-    const handleTyping = (data) => {
-      if (selectedUserId && data.userId === selectedUserId) {
-        setIsRecipientTyping(true);
-      }
+    const handleTypingEvent = (data) => {
+      if (selectedUserId && data.userId === selectedUserId) setIsRecipientTyping(true);
     };
 
-    const handleStopTyping = (data) => {
-      if (selectedUserId && data.userId === selectedUserId) {
-        setIsRecipientTyping(false);
-      }
+    const handleStopTypingEvent = (data) => {
+      if (selectedUserId && data.userId === selectedUserId) setIsRecipientTyping(false);
     };
 
     const handlePresenceUpdate = ({ userId, isOnline }) => {
-      setUsers((prev) =>
-        prev.map((contact) =>
-          contact.user_id === userId ? { ...contact, isOnline } : contact
-        )
-      );
+      setUsers((prev) => prev.map((contact) => (contact.user_id === userId ? { ...contact, isOnline } : contact)));
     };
 
-    const handleMessageError = ({ message }) => {
-      addToast(message || "Message could not be sent", "danger");
-    };
-
+    const handleMessageError = ({ message }) => addToast(message || "Message could not be sent", "danger");
     const handleMessageUpdated = (updatedMessage) => {
-      setMessages((prev) =>
-        prev.map((message) =>
-          message.message_id === updatedMessage.message_id ? updatedMessage : message
-        )
-      );
+      setMessages((prev) => prev.map((message) => (message.message_id === updatedMessage.message_id ? updatedMessage : message)));
       refreshUsers();
     };
-
     const handleMessageDeleted = ({ messageId }) => {
       setMessages((prev) => prev.filter((message) => message.message_id !== messageId));
       refreshUsers();
     };
 
+    const handleMessagesSeen = ({ conversationUserId, seenMessageIds }) => {
+      if (!conversationUserId || !Array.isArray(seenMessageIds)) return;
+
+      setMessages((prev) =>
+        prev.map((message) =>
+          seenMessageIds.includes(message.message_id)
+            ? { ...message, isSeen: true }
+            : message
+        )
+      );
+
+      setUsers((prev) =>
+        prev.map((contact) =>
+          contact.user_id === conversationUserId
+            ? { ...contact, unreadCount: 0 }
+            : contact
+        )
+      );
+
+      if (selectedUserId === conversationUserId) {
+        clearConversationState(conversationUserId);
+      }
+    };
+
     socket.on("receive_message", handleReceiveMessage);
-    socket.on("typing", handleTyping);
-    socket.on("stop_typing", handleStopTyping);
+    socket.on("typing", handleTypingEvent);
+    socket.on("stop_typing", handleStopTypingEvent);
     socket.on("presence_update", handlePresenceUpdate);
     socket.on("message_error", handleMessageError);
     socket.on("message_updated", handleMessageUpdated);
     socket.on("message_deleted", handleMessageDeleted);
+    socket.on("messages_seen", handleMessagesSeen);
 
     return () => {
       socket.off("receive_message", handleReceiveMessage);
-      socket.off("typing", handleTyping);
-      socket.off("stop_typing", handleStopTyping);
+      socket.off("typing", handleTypingEvent);
+      socket.off("stop_typing", handleStopTypingEvent);
       socket.off("presence_update", handlePresenceUpdate);
       socket.off("message_error", handleMessageError);
       socket.off("message_updated", handleMessageUpdated);
       socket.off("message_deleted", handleMessageDeleted);
+      socket.off("messages_seen", handleMessagesSeen);
     };
   }, [selectedUserId, user.user_id, addToast]);
 
   useEffect(() => {
     if (!selectedUserId) return;
-
     const currentSelectedUser = usersRef.current.find((contact) => contact.user_id === selectedUserId);
     if (!currentSelectedUser) return;
 
     const ids = [user.user_id, currentSelectedUser.user_id].sort();
     const room = `chat_${ids[0]}_${ids[1]}`;
-
     socket.emit("join_room", room);
 
     const fetchMessages = async () => {
@@ -369,15 +280,53 @@ const ChatDashboard = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isRecipientTyping]);
 
+  const handleSelectUser = (contact) => {
+    setSelectedUserId(contact.user_id);
+    setIsRecipientTyping(false);
+    clearConversationState(contact.user_id);
+    setShowEmojiPicker(false);
+    setMobileSidebarOpen(false);
+  };
+
+  const handleHideContact = (contactId) => {
+    if (!user?.user_id) return;
+    const next = toggleHiddenContact(user.user_id, contactId);
+    setChatSettings(next);
+    setShowEmojiPicker(false);
+    if (selectedUserId === contactId) {
+      setSelectedUserId(null);
+      setMessages([]);
+    }
+    addToast(next.hiddenContacts.includes(Number(contactId)) ? "Conversation hidden from your sidebar" : "Conversation restored to your sidebar", "info");
+  };
+
+  const handlePinContact = (contactId) => {
+    if (!user?.user_id) return;
+    const next = togglePinnedContact(user.user_id, contactId);
+    setChatSettings(next);
+    setShowEmojiPicker(false);
+    addToast(next.pinnedContacts.includes(Number(contactId)) ? "Conversation pinned to the top" : "Conversation unpinned", "info");
+  };
+
+  const startEditMessage = (message) => {
+    setEditingMessageId(message.message_id);
+    setNewMessage(message.message);
+    setShowEmojiPicker(false);
+  };
+
+  const cancelEditMessage = () => {
+    setEditingMessageId(null);
+    setNewMessage("");
+  };
+
+  const appendEmoji = (emoji) => setNewMessage((prev) => `${prev}${emoji}`);
+
   const handleTyping = () => {
     if (!selectedUser) return;
     const ids = [user.user_id, selectedUser.user_id].sort();
     const room = `chat_${ids[0]}_${ids[1]}`;
-
     socket.emit("typing", { room, userId: user.user_id });
-
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-
     typingTimeoutRef.current = setTimeout(() => {
       socket.emit("stop_typing", { room, userId: user.user_id });
     }, 2000);
@@ -389,9 +338,7 @@ const ChatDashboard = () => {
 
     if (editingMessageId) {
       setIsSavingMessage(true);
-      Api.patch(`/chat/messages/${editingMessageId}`, {
-        message: newMessage.trim(),
-      })
+      Api.patch(`/chat/messages/${editingMessageId}`, { message: newMessage.trim() })
         .then(async () => {
           cancelEditMessage();
           await refreshUsers();
@@ -408,14 +355,12 @@ const ChatDashboard = () => {
 
     const ids = [user.user_id, selectedUser.user_id].sort();
     const room = `chat_${ids[0]}_${ids[1]}`;
-
     socket.emit("send_message", {
       senderId: user.user_id,
       receiverId: selectedUser.user_id,
       message: newMessage,
       room,
     });
-
     socket.emit("stop_typing", { room, userId: user.user_id });
     setNewMessage("");
     setShowEmojiPicker(false);
@@ -423,9 +368,7 @@ const ChatDashboard = () => {
   };
 
   const handleDeleteMessage = async (messageId) => {
-    const confirmed = window.confirm("Delete this message?");
-    if (!confirmed) return;
-
+    if (!window.confirm("Delete this message?")) return;
     try {
       await Api.delete(`/chat/messages/${messageId}`);
       setMessages((prev) => prev.filter((message) => message.message_id !== messageId));
@@ -436,31 +379,21 @@ const ChatDashboard = () => {
     }
   };
 
-  const filteredUsers = users.filter((contact) =>
-    contact.username.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
+  const filteredUsers = users.filter((contact) => contact.username.toLowerCase().includes(searchTerm.toLowerCase()));
   const visibleUsers = filteredUsers
     .filter((contact) => !chatSettings.hiddenContacts.includes(contact.user_id))
     .sort((a, b) => {
       const pinnedA = chatSettings.pinnedContacts.includes(a.user_id) ? 1 : 0;
       const pinnedB = chatSettings.pinnedContacts.includes(b.user_id) ? 1 : 0;
       if (pinnedA !== pinnedB) return pinnedB - pinnedA;
-
-      if (!chatSettings.autoSortEnabled) {
-        return a.username.localeCompare(b.username);
-      }
-
+      if (!chatSettings.autoSortEnabled) return a.username.localeCompare(b.username);
       const unreadA = unreadByUser[a.user_id] ?? a.unreadCount ?? 0;
       const unreadB = unreadByUser[b.user_id] ?? b.unreadCount ?? 0;
       if (unreadA !== unreadB) return unreadB - unreadA;
-
       const timeA = new Date(a.lastMessageAt || 0).getTime();
       const timeB = new Date(b.lastMessageAt || 0).getTime();
       if (timeA !== timeB) return timeB - timeA;
-
       if (a.isOnline !== b.isOnline) return Number(b.isOnline) - Number(a.isOnline);
-
       return a.username.localeCompare(b.username);
     });
 
@@ -472,395 +405,258 @@ const ChatDashboard = () => {
         : "Offline"
     : "";
 
-  return (
-    <div className="flex h-[calc(100vh-140px)] gap-6 animate-in fade-in duration-500">
-      <Card className="w-80 flex flex-col p-0 overflow-hidden border-none shadow-premium bg-white dark:bg-slate-900/50 backdrop-blur-xl">
-        <div className="p-6 border-b border-gray-100 dark:border-slate-800">
-          <div className="flex items-center justify-between gap-3 mb-4">
-            <h2 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">
-              Messages
-            </h2>
-            <Link
-              to="/settings"
-              className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-50 dark:bg-slate-800/60 text-gray-500 dark:text-slate-400 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-colors"
-            >
-              <Settings2 size={16} />
-              <span className="text-[10px] font-black uppercase tracking-widest">Settings</span>
-            </Link>
+  const renderUser = (contact) => {
+    const isActive = selectedUserId === contact.user_id;
+    const unreadCount = unreadByUser[contact.user_id] ?? contact.unreadCount ?? 0;
+    const isHighlighted = highlightedUserId === contact.user_id;
+    const isPinned = chatSettings.pinnedContacts.includes(contact.user_id);
+
+    return (
+      <button
+        key={contact.user_id}
+        onClick={() => handleSelectUser(contact)}
+        className={`w-full flex items-center gap-3 px-3 py-3 rounded-2xl text-left transition-all duration-200 mb-1 relative overflow-hidden ${isActive ? "bg-[#d9fdd3] dark:bg-[#202c33]" : "hover:bg-white/80 dark:hover:bg-white/5"} ${isHighlighted ? "ring-2 ring-[#25d366]/50" : ""}`}
+      >
+        <div className="relative shrink-0">
+          <div className={`w-14 h-14 rounded-full flex items-center justify-center overflow-hidden shadow-sm border ${isActive ? "bg-[#00a884] border-[#00a884] text-white" : "bg-gradient-to-br from-[#dff7e7] to-[#c6f3d3] border-white/80 dark:border-white/10 text-[#075e54]"}`}>
+            <UserIcon size={22} />
           </div>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-            <input
-              type="text"
-              placeholder="Search contacts..."
-              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-slate-800/50 border border-gray-100 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all outline-none"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
+          <span className={`absolute -bottom-0.5 -right-0.5 h-[18px] w-[18px] rounded-full border-2 border-white dark:border-[#111b21] ${contact.isOnline ? "bg-emerald-500" : "bg-slate-400"}`} />
         </div>
 
-        <div className="flex-1 overflow-y-auto p-3 space-y-1 custom-scrollbar">
-          {visibleUsers.length === 0 ? (
-            <div className="p-6 text-center text-sm text-gray-400 dark:text-slate-500">
-              No visible contacts. Open Settings to restore hidden chats.
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between gap-2">
+            <p className={`font-semibold truncate ${isActive ? "text-slate-900 dark:text-white" : "text-slate-800 dark:text-slate-100"}`}>{contact.username}</p>
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 shrink-0">
+              {contact.lastMessageAt ? new Date(contact.lastMessageAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}
+            </span>
+          </div>
+          <div className="mt-1 flex items-center justify-between gap-3">
+            <p className={`text-sm truncate ${isActive ? "text-slate-700 dark:text-slate-300" : "text-slate-500 dark:text-slate-400"}`}>
+              {contact.lastMessage ? `${contact.lastMessageSenderId === user.user_id ? "You: " : ""}${contact.lastMessage}` : "No messages yet"}
+            </p>
+            {unreadCount > 0 && !isActive ? <span className="shrink-0 min-w-6 h-6 px-1.5 inline-flex items-center justify-center rounded-full bg-[#25d366] text-white text-[10px] font-black">{unreadCount}</span> : null}
+          </div>
+          <div className="mt-1.5 flex items-center gap-2 flex-wrap">
+            {isPinned && <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-[#00a884]"><Pin size={10} />Pinned</span>}
+            {contact.isBlocked && <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-red-500"><Ban size={10} />Blocked</span>}
+            {chatSettings.mutedContacts.includes(contact.user_id) && <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-amber-600"><VolumeX size={10} />Muted</span>}
+          </div>
+        </div>
+      </button>
+    );
+  };
+
+  const renderMessage = (msg, index) => {
+    const isMine = msg.senderId === user.user_id;
+    const bubbleClass = isMine
+      ? "bg-[#d9fdd3] dark:bg-[#005c4b] text-slate-900 dark:text-white rounded-tr-[6px]"
+      : "bg-white dark:bg-[#202c33] text-slate-800 dark:text-slate-100 rounded-tl-[6px] border border-black/5 dark:border-white/10";
+    const rowClass = "flex " + (isMine ? "justify-end" : "justify-start") + " animate-in slide-in-from-bottom-2 duration-300";
+    const footerClass = "mt-1.5 flex items-center gap-1.5 " + (isMine ? "justify-end" : "justify-start");
+
+    return (
+      <div key={msg.message_id || msg.id || index} className={rowClass}>
+        <div className={`group relative max-w-[82%] md:max-w-[68%] rounded-2xl px-3.5 py-2.5 shadow-sm break-words ${bubbleClass}`}>
+          {isMine && (
+            <div className="absolute -top-3 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button type="button" onClick={() => startEditMessage(msg)} className="h-7 w-7 rounded-full bg-white text-slate-700 shadow flex items-center justify-center"><Pencil size={12} /></button>
+              <button type="button" onClick={() => handleDeleteMessage(msg.message_id)} className="h-7 w-7 rounded-full bg-white text-red-600 shadow flex items-center justify-center"><Trash2 size={12} /></button>
             </div>
-          ) : (
-            visibleUsers.map((contact) => {
-              const isActive = selectedUserId === contact.user_id;
-              const unreadCount = unreadByUser[contact.user_id] ?? contact.unreadCount ?? 0;
-              const isHighlighted = highlightedUserId === contact.user_id;
-
-              return (
-                <button
-                  key={contact.user_id}
-                  onClick={() => handleSelectUser(contact)}
-                  className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all duration-300 group relative overflow-hidden text-left
-                    ${isActive
-                      ? "bg-brand-500 text-white shadow-lg shadow-brand-500/20"
-                      : "hover:bg-gray-50 dark:hover:bg-slate-800 text-gray-600 dark:text-gray-400"}
-                    ${isHighlighted ? "ring-2 ring-brand-400/60 animate-pulse" : ""}
-                  `}
-                >
-                  <div
-                    className={`w-12 h-12 rounded-xl flex items-center justify-center border-2 border-white dark:border-slate-700 shadow-sm transition-transform group-hover:scale-105
-                      ${isActive ? "bg-white/20" : "bg-gray-100 dark:bg-slate-700"}
-                    `}
-                  >
-                    <UserIcon size={20} className={isActive ? "text-white" : "text-gray-500"} />
-                  </div>
-
-                  <div className="flex flex-col items-start overflow-hidden text-left flex-1 min-w-0">
-                    <span className="font-bold text-sm truncate uppercase tracking-tight w-full">
-                      {contact.username}
-                    </span>
-                    <span className={`text-[10px] font-medium uppercase tracking-widest ${isActive ? "text-white/70" : "text-gray-400"}`}>
-                      {contact.role}
-                    </span>
-                    <span className={`mt-1 text-[11px] max-w-[180px] truncate w-full ${isActive ? "text-white/80" : "text-gray-500 dark:text-gray-400"}`}>
-                      {contact.lastMessage
-                        ? `${contact.lastMessageSenderId === user.user_id ? "You: " : ""}${contact.lastMessage}`
-                        : "No messages yet"}
-                    </span>
-                    <div className="mt-1 flex items-center gap-2 flex-wrap">
-                      {chatSettings.pinnedContacts.includes(contact.user_id) && (
-                        <span className={`inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-widest ${isActive ? "text-white/80" : "text-fuchsia-500"}`}>
-                          <Pin size={10} />
-                          Pinned
-                        </span>
-                      )}
-                      {contact.isBlocked && (
-                        <span className={`inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-widest ${isActive ? "text-white/80" : "text-red-500"}`}>
-                          <Ban size={10} />
-                          Blocked
-                        </span>
-                      )}
-                      {chatSettings.mutedContacts.includes(contact.user_id) && (
-                        <span className={`inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-widest ${isActive ? "text-white/80" : "text-amber-500"}`}>
-                          <VolumeX size={10} />
-                          Muted
-                        </span>
-                      )}
-                      {unreadCount > 0 && !isActive && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500 text-white text-[9px] font-black uppercase tracking-widest">
-                          <Sparkles size={10} />
-                          {unreadCount} new
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="ml-auto flex flex-col items-end gap-2">
-                    {contact.lastMessageAt && (
-                      <span className={`text-[9px] font-bold uppercase tracking-widest ${isActive ? "text-white/60" : "text-gray-400"}`}>
-                        {new Date(contact.lastMessageAt).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
-                    )}
-                    <div
-                      className={`w-2 h-2 rounded-full border-2 border-white dark:border-slate-800 ${
-                        contact.isOnline ? "bg-emerald-500" : "bg-gray-300"
-                      }`}
-                    />
-                    {contact.isOnline ? (
-                      <Wifi size={12} className={isActive ? "text-white/70" : "text-emerald-500"} />
-                    ) : (
-                      <WifiOff size={12} className={isActive ? "text-white/70" : "text-gray-400"} />
-                    )}
-                  </div>
-                </button>
-              );
-            })
           )}
+          <p className="text-[15px] leading-relaxed whitespace-pre-wrap">{msg.message}</p>
+          <div className={footerClass}>
+            <span className="text-[10px] text-current/60">{new Date(msg.createdAt || msg.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+            {msg.editedAt && <span className="text-[9px] font-bold uppercase tracking-widest text-current/50">edited</span>}
+            {isMine && (msg.isSeen ? <CheckCheck size={13} className="text-[#53bdeb]" /> : <Check size={13} className="text-current/50" />)}
+          </div>
         </div>
-      </Card>
+      </div>
+    );
+  };
 
-      <Card className="flex-1 flex flex-col p-0 overflow-hidden border-none shadow-premium bg-white dark:bg-slate-900/50 backdrop-blur-xl">
-        {selectedUser ? (
-          <>
-            <div className="p-6 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between bg-white/50 dark:bg-slate-900/50">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-linear-to-tr from-brand-600 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-brand-500/20">
-                  <UserIcon size={24} />
-                </div>
+  return (
+    <div className="relative h-[calc(100vh-140px)] overflow-hidden rounded-[28px] border border-white/60 dark:border-slate-800 shadow-2xl shadow-black/10">
+      <div className="absolute inset-0 bg-[#efeae2] dark:bg-[#0b141a]" />
+      <div className="absolute inset-0 opacity-40 dark:opacity-20 bg-[radial-gradient(circle_at_top_left,rgba(37,211,102,0.25),transparent_30%),radial-gradient(circle_at_top_right,rgba(13,148,136,0.16),transparent_22%),radial-gradient(circle_at_bottom_left,rgba(16,185,129,0.12),transparent_28%)]" />
+      <div className="absolute inset-0 opacity-[0.07] dark:opacity-[0.08] bg-[linear-gradient(rgba(0,0,0,0.75)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,0.75)_1px,transparent_1px)] bg-[size:22px_22px]" />
+
+      <div className="relative z-10 flex h-full">
+        <div className={`absolute inset-0 z-20 md:hidden transition-opacity duration-300 ${mobileSidebarOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}>
+          <button
+            type="button"
+            aria-label="Close chat list"
+            onClick={() => setMobileSidebarOpen(false)}
+            className="absolute inset-0 bg-black/40"
+          />
+          <aside
+            className={`relative z-10 h-full w-[88%] max-w-[360px] border-r border-black/5 dark:border-white/10 bg-white/95 dark:bg-[#111b21]/95 backdrop-blur-xl flex flex-col transition-transform duration-300 ${mobileSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
+          >
+            <div className="bg-[#00a884] px-5 py-4 text-white">
+              <div className="flex items-center justify-between gap-3">
                 <div>
-                  <h3 className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight leading-none">
-                    {selectedUser.username}
-                  </h3>
-                  <div className="flex items-center gap-1.5 mt-1.5">
-                    <div
-                      className={`w-1.5 h-1.5 rounded-full ${
-                        selectedUser.isBlocked
-                          ? "bg-red-500"
-                          : selectedUser.isOnline
-                            ? "bg-emerald-500 animate-pulse"
-                            : "bg-gray-400"
-                      }`}
-                    />
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
-                      {selectedConversationStatus}
-                    </span>
-                  </div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-white/75">WhatsApp style</p>
+                  <h2 className="text-2xl font-black tracking-tight">Chats</h2>
                 </div>
+                <Link to="/settings" className="h-11 w-11 rounded-full bg-white/15 hover:bg-white/25 inline-flex items-center justify-center transition-colors"><Settings2 size={18} /></Link>
               </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handleHideContact(selectedUser.user_id)}
-                  className="px-3 py-2 rounded-xl bg-gray-50 dark:bg-slate-800/60 text-gray-500 dark:text-slate-400 hover:bg-brand-50 hover:text-brand-600 transition-colors inline-flex items-center gap-2"
-                >
-                  <EyeOff size={14} />
-                  <span className="text-[10px] font-black uppercase tracking-widest">Hide</span>
-                </button>
-                <button
-                  onClick={() => handlePinContact(selectedUser.user_id)}
-                  className="px-3 py-2 rounded-xl bg-gray-50 dark:bg-slate-800/60 text-gray-500 dark:text-slate-400 hover:bg-fuchsia-50 hover:text-fuchsia-600 transition-colors inline-flex items-center gap-2"
-                >
-                  {chatSettings.pinnedContacts.includes(selectedUser.user_id) ? <PinOff size={14} /> : <Pin size={14} />}
-                  <span className="text-[10px] font-black uppercase tracking-widest">
-                    {chatSettings.pinnedContacts.includes(selectedUser.user_id) ? "Unpin" : "Pin"}
-                  </span>
-                </button>
-                <Link
-                  to="/settings"
-                  className="p-3 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-xl transition-colors text-gray-400 inline-flex items-center justify-center"
-                >
-                  <Settings2 size={18} />
-                </Link>
-                <button className="p-3 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-xl transition-colors text-gray-400">
-                  <MoreVertical size={20} />
-                </button>
+              <div className="mt-4 flex items-center gap-3">
+                <div className="h-11 w-11 rounded-full bg-white/15 inline-flex items-center justify-center"><UserIcon size={18} /></div>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold truncate">{user?.username}</p>
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-white/75">Online chat</p>
+                </div>
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-8 space-y-6 bg-gray-50/30 dark:bg-slate-900/10 custom-scrollbar">
-              {messages.length === 0 && (
-                <div className="flex flex-col items-center justify-center h-full text-center opacity-50">
-                  <Hash size={48} className="text-gray-300 mb-4" />
-                  <p className="font-bold text-gray-400 uppercase tracking-widest text-xs">
-                    No conversation history yet
-                  </p>
-                  <p className="text-gray-400 text-[10px] mt-1 italic">
-                    Say hi to start the journey!
-                  </p>
-                </div>
-              )}
-
-              {messages.map((msg, index) => (
-                <div
-                  key={msg.message_id || msg.id || index}
-                  className={`flex ${msg.senderId === user.user_id ? "justify-end" : "justify-start"} animate-in slide-in-from-bottom-2 duration-300`}
-                >
-                  <div
-                    className={`max-w-[70%] p-4 rounded-2xl shadow-sm relative group break-words
-                      ${msg.senderId === user.user_id
-                        ? "bg-brand-600 text-white rounded-tr-none"
-                        : "bg-white dark:bg-slate-800 text-gray-800 dark:text-gray-200 rounded-tl-none border border-gray-100 dark:border-slate-700"}
-                    `}
-                  >
-                    {msg.senderId === user.user_id && (
-                      <div className="absolute -top-3 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          type="button"
-                          onClick={() => startEditMessage(msg)}
-                          className="p-1.5 rounded-full bg-white/90 text-gray-700 shadow hover:bg-white"
-                        >
-                          <Pencil size={12} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteMessage(msg.message_id)}
-                          className="p-1.5 rounded-full bg-white/90 text-red-600 shadow hover:bg-white"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    )}
-                    <p className="text-sm font-medium leading-relaxed whitespace-pre-wrap">
-                      {msg.message}
-                    </p>
-                    <div
-                      className={`flex items-center gap-1.5 mt-2 opacity-60 ${
-                        msg.senderId === user.user_id ? "justify-end" : "justify-start"
-                      }`}
-                    >
-                      <span
-                        className={`text-[9px] font-bold uppercase ${
-                          msg.senderId === user.user_id ? "text-white" : "text-gray-400"
-                        }`}
-                      >
-                        {new Date(msg.createdAt || msg.timestamp).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
-                      {msg.editedAt && (
-                        <span className="text-[9px] font-black uppercase tracking-widest text-current/70">
-                          edited
-                        </span>
-                      )}
-                      {msg.senderId === user.user_id && (
-                        msg.isSeen ? (
-                          <CheckCheck size={12} className="text-emerald-300" />
-                        ) : (
-                          <Check size={12} className="text-white/50" />
-                        )
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-
-              {isRecipientTyping && (
-                <div className="flex justify-start animate-in slide-in-from-bottom-2 duration-300">
-                  <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl rounded-tl-none border border-gray-100 dark:border-slate-700 shadow-sm">
-                    <div className="flex gap-1.5">
-                      <div className="w-1.5 h-1.5 bg-brand-500 rounded-full animate-bounce" />
-                      <div className="w-1.5 h-1.5 bg-brand-500 rounded-full animate-bounce [animation-delay:0.2s]" />
-                      <div className="w-1.5 h-1.5 bg-brand-500 rounded-full animate-bounce [animation-delay:0.4s]" />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div ref={messagesEndRef} />
-            </div>
-
-            <form onSubmit={handleSendMessage} className="p-6 bg-white dark:bg-slate-900/50 border-t border-gray-100 dark:border-slate-800">
+            <div className="p-4 border-b border-black/5 dark:border-white/10 bg-white/70 dark:bg-[#111b21]/80">
               <div className="relative">
-                {editingMessageId && (
-                  <div className="mb-3 flex items-center justify-between rounded-2xl bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-900/30 px-4 py-3">
-                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-300">
-                        Editing message
-                      </p>
-                      <p className="text-xs text-amber-700/80 dark:text-amber-200/80">
-                        Update the text and save it, or cancel.
-                      </p>
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <input type="text" placeholder="Search or start a new chat" className="w-full h-12 rounded-2xl bg-[#f0f2f5] dark:bg-[#202c33] border border-transparent pl-11 pr-4 text-sm outline-none focus:ring-2 focus:ring-[#00a884]/20 focus:border-[#00a884] text-slate-700 dark:text-slate-100 placeholder:text-slate-400" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+              </div>
+              <div className="mt-3 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.22em] text-slate-400 dark:text-slate-500">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#f0f2f5] dark:bg-[#202c33]"><Sparkles size={11} className="text-[#00a884]" />{visibleUsers.length} chats</span>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#f0f2f5] dark:bg-[#202c33]"><Wifi size={11} className="text-emerald-500" />Live</span>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-2 py-2 custom-scrollbar">
+              {visibleUsers.length === 0 ? <div className="p-6 text-center text-sm text-gray-400 dark:text-slate-500">No visible contacts. Open Settings to restore hidden chats.</div> : visibleUsers.map(renderUser)}
+            </div>
+          </aside>
+        </div>
+
+        <aside className="hidden md:flex w-[340px] min-w-[300px] max-w-[360px] border-r border-black/5 dark:border-white/10 bg-white/85 dark:bg-[#111b21]/95 backdrop-blur-xl flex-col">
+          <div className="bg-[#00a884] px-5 py-4 text-white">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.24em] text-white/75">WhatsApp style</p>
+                <h2 className="text-2xl font-black tracking-tight">Chats</h2>
+              </div>
+              <Link to="/settings" className="h-11 w-11 rounded-full bg-white/15 hover:bg-white/25 inline-flex items-center justify-center transition-colors"><Settings2 size={18} /></Link>
+            </div>
+            <div className="mt-4 flex items-center gap-3">
+              <div className="h-11 w-11 rounded-full bg-white/15 inline-flex items-center justify-center"><UserIcon size={18} /></div>
+              <div className="min-w-0">
+                <p className="text-sm font-bold truncate">{user?.username}</p>
+                <p className="text-[10px] uppercase tracking-[0.2em] text-white/75">Online chat</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-4 border-b border-black/5 dark:border-white/10 bg-white/70 dark:bg-[#111b21]/80">
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+              <input type="text" placeholder="Search or start a new chat" className="w-full h-12 rounded-2xl bg-[#f0f2f5] dark:bg-[#202c33] border border-transparent pl-11 pr-4 text-sm outline-none focus:ring-2 focus:ring-[#00a884]/20 focus:border-[#00a884] text-slate-700 dark:text-slate-100 placeholder:text-slate-400" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+            </div>
+            <div className="mt-3 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.22em] text-slate-400 dark:text-slate-500">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#f0f2f5] dark:bg-[#202c33]"><Sparkles size={11} className="text-[#00a884]" />{visibleUsers.length} chats</span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#f0f2f5] dark:bg-[#202c33]"><Wifi size={11} className="text-emerald-500" />Live</span>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-2 py-2 custom-scrollbar">
+            {visibleUsers.length === 0 ? <div className="p-6 text-center text-sm text-gray-400 dark:text-slate-500">No visible contacts. Open Settings to restore hidden chats.</div> : visibleUsers.map(renderUser)}
+          </div>
+        </aside>
+
+        <main className="flex-1 flex flex-col bg-[#efeae2] dark:bg-[#0b141a]">
+          {selectedUser ? (
+            <>
+              <div className="h-16 px-5 py-3 flex items-center justify-between bg-[#f0f2f5]/95 dark:bg-[#202c33]/95 border-b border-black/5 dark:border-white/10 backdrop-blur-xl">
+                <div className="flex items-center gap-3 min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => setMobileSidebarOpen(true)}
+                    className="md:hidden h-10 w-10 rounded-full inline-flex items-center justify-center text-slate-500 hover:bg-white/80 dark:hover:bg-white/5 transition-colors"
+                    aria-label="Open chat list"
+                  >
+                    <Menu size={18} />
+                  </button>
+                  <div className="relative shrink-0">
+                    <div className="h-12 w-12 rounded-full bg-[#dff7e7] dark:bg-[#1f2c34] flex items-center justify-center text-[#075e54] dark:text-[#00a884] border border-white/70 dark:border-white/10"><UserIcon size={22} /></div>
+                    <span className={`absolute -bottom-0.5 -right-0.5 h-[18px] w-[18px] rounded-full border-2 border-[#f0f2f5] dark:border-[#202c33] ${selectedUser.isBlocked ? "bg-red-500" : selectedUser.isOnline ? "bg-emerald-500" : "bg-slate-400"}`} />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-base md:text-lg font-semibold text-slate-900 dark:text-white truncate">{selectedUser.username}</h3>
+                    <p className="text-[12px] text-slate-500 dark:text-slate-400 truncate">{selectedConversationStatus}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => handleHideContact(selectedUser.user_id)} className="hidden sm:inline-flex h-10 w-10 items-center justify-center rounded-full text-slate-500 hover:bg-white/80 dark:hover:bg-white/5 transition-colors" title="Hide chat"><EyeOff size={18} /></button>
+                  <button onClick={() => handlePinContact(selectedUser.user_id)} className="hidden sm:inline-flex h-10 w-10 items-center justify-center rounded-full text-slate-500 hover:bg-white/80 dark:hover:bg-white/5 transition-colors" title="Pin chat">{chatSettings.pinnedContacts.includes(selectedUser.user_id) ? <PinOff size={18} /> : <Pin size={18} />}</button>
+                  <Link to="/settings" className="h-10 w-10 rounded-full inline-flex items-center justify-center text-slate-500 hover:bg-white/80 dark:hover:bg-white/5 transition-colors" title="Settings"><Settings2 size={18} /></Link>
+                  <button className="h-10 w-10 rounded-full inline-flex items-center justify-center text-slate-500 hover:bg-white/80 dark:hover:bg-white/5 transition-colors" title="More"><MoreVertical size={18} /></button>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto px-4 md:px-8 py-5 space-y-4 custom-scrollbar">
+                {messages.length === 0 ? (
+                  <div className="h-full min-h-[300px] flex flex-col items-center justify-center text-center px-6">
+                    <div className="h-20 w-20 rounded-full bg-white/70 dark:bg-white/5 shadow-sm flex items-center justify-center text-[#00a884] mb-4"><MessageSquare size={34} /></div>
+                    <p className="text-lg font-semibold text-slate-700 dark:text-slate-200">Start your chat</p>
+                    <p className="mt-2 text-sm text-slate-500 dark:text-slate-400 max-w-sm">Messages appear here in real time, with emoji support, online status, and friendly private chat.</p>
+                  </div>
+                ) : null}
+                {messages.map(renderMessage)}
+                {isRecipientTyping && (
+                  <div className="flex justify-start animate-in slide-in-from-bottom-2 duration-300">
+                    <div className="rounded-2xl rounded-tl-[6px] bg-white dark:bg-[#202c33] border border-black/5 dark:border-white/10 px-4 py-3 shadow-sm">
+                      <div className="flex gap-1.5">
+                        <div className="w-2 h-2 rounded-full bg-[#00a884] animate-bounce" />
+                        <div className="w-2 h-2 rounded-full bg-[#00a884] animate-bounce [animation-delay:0.15s]" />
+                        <div className="w-2 h-2 rounded-full bg-[#00a884] animate-bounce [animation-delay:0.3s]" />
+                      </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={cancelEditMessage}
-                      className="p-2 rounded-full bg-white/80 dark:bg-slate-900/60 text-amber-700 dark:text-amber-200"
-                    >
-                      <X size={14} />
-                    </button>
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+
+              <form onSubmit={handleSendMessage} className="px-4 md:px-6 pb-4 pt-2 bg-[#f0f2f5]/95 dark:bg-[#202c33]/95 border-t border-black/5 dark:border-white/10 backdrop-blur-xl">
+                {editingMessageId && (
+                  <div className="mb-3 flex items-center justify-between rounded-2xl bg-[#d9fdd3] dark:bg-[#1f2c34] border border-[#25d366]/20 px-4 py-3">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#075e54] dark:text-[#25d366]">Editing message</p>
+                      <p className="text-xs text-slate-600 dark:text-slate-300">Save changes or cancel.</p>
+                    </div>
+                    <button type="button" onClick={cancelEditMessage} className="h-9 w-9 rounded-full bg-white/80 dark:bg-[#111b21] inline-flex items-center justify-center text-slate-500"><X size={14} /></button>
                   </div>
                 )}
 
                 {showEmojiPicker && (
-                  <div className="absolute bottom-full mb-3 left-0 z-20 w-full max-w-sm bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 rounded-2xl shadow-2xl p-3">
+                  <div className="mb-3 rounded-3xl border border-black/5 dark:border-white/10 bg-white dark:bg-[#111b21] shadow-xl p-3 max-w-sm">
                     <div className="grid grid-cols-5 gap-2">
                       {QUICK_EMOJIS.map((emoji) => (
-                        <button
-                          key={emoji}
-                          type="button"
-                          onClick={() => appendEmoji(emoji)}
-                          className="h-11 rounded-xl bg-gray-50 dark:bg-slate-800 hover:bg-brand-50 dark:hover:bg-brand-900/20 text-lg transition-colors"
-                        >
-                          {emoji}
-                        </button>
+                        <button key={emoji} type="button" onClick={() => appendEmoji(emoji)} className="h-11 rounded-2xl bg-[#f0f2f5] dark:bg-[#202c33] hover:bg-[#d9fdd3] dark:hover:bg-[#1f2c34] text-lg transition-colors">{emoji}</button>
                       ))}
                     </div>
                   </div>
                 )}
 
-                <div className="flex items-center gap-4 bg-gray-50 dark:bg-slate-800/80 p-2 rounded-2xl border border-gray-100 dark:border-slate-700 shadow-inner">
-                  <button type="button" className="p-3 hover:bg-white dark:hover:bg-slate-700 rounded-xl transition-all text-gray-400 hover:text-brand-500">
-                    <Paperclip size={20} />
-                  </button>
-                  <input
-                    type="text"
-                    placeholder={
-                      editingMessageId
-                        ? "Edit your message..."
-                        : selectedUser.isBlocked
-                          ? "Chat disabled for blocked user"
-                          : "Drive your conversation here..."
-                    }
-                    className={`flex-1 bg-transparent border-none outline-none text-sm font-medium py-2 px-2 text-gray-700 dark:text-gray-200 placeholder:text-gray-400 italic ${
-                      selectedUser.isBlocked ? "cursor-not-allowed opacity-60" : ""
-                    }`}
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    onKeyDown={handleTyping}
-                    disabled={selectedUser.isBlocked || isSavingMessage}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowEmojiPicker((prev) => !prev)}
-                    className="p-3 hover:bg-white dark:hover:bg-slate-700 rounded-xl transition-all text-gray-400 hover:text-amber-500"
-                  >
-                    <Smile size={20} />
-                  </button>
-                  <Button
-                    variant="primary"
-                    type="submit"
-                    className="rounded-xl px-6 h-12 shadow-lg shadow-brand-500/40"
-                    disabled={selectedUser.isBlocked || isSavingMessage}
-                    loading={isSavingMessage}
-                  >
-                    {editingMessageId ? "Save" : <Send size={18} />}
-                  </Button>
+                <div className="flex items-center gap-2 rounded-[28px] bg-white dark:bg-[#2a3942] border border-black/5 dark:border-white/10 px-3 py-2 shadow-sm">
+                  <button type="button" className="h-11 w-11 rounded-full inline-flex items-center justify-center text-slate-500 hover:bg-[#f0f2f5] dark:hover:bg-white/5 transition-colors" title="Attach"><Paperclip size={18} /></button>
+                  <button type="button" onClick={() => setShowEmojiPicker((prev) => !prev)} className="h-11 w-11 rounded-full inline-flex items-center justify-center text-slate-500 hover:bg-[#f0f2f5] dark:hover:bg-white/5 transition-colors" title="Emoji"><Smile size={18} /></button>
+                  <input type="text" placeholder={editingMessageId ? "Edit your message..." : selectedUser.isBlocked ? "Chat disabled for blocked user" : "Type a message"} className="flex-1 bg-transparent border-none outline-none text-[15px] px-2 py-3 text-slate-700 dark:text-slate-100 placeholder:text-slate-400" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} onKeyDown={handleTyping} disabled={selectedUser.isBlocked || isSavingMessage} />
+                  <Button variant="primary" type="submit" className="h-11 min-w-11 rounded-full px-4 bg-[#00a884] hover:bg-[#029d79] shadow-none" disabled={selectedUser.isBlocked || isSavingMessage} loading={isSavingMessage}>{editingMessageId ? "Save" : <Send size={16} />}</Button>
                 </div>
 
-                {selectedUser.isBlocked && (
-                  <p className="mt-3 text-xs font-bold uppercase tracking-widest text-red-500">
-                    This contact is blocked. Chat is disabled until admin unblocks them.
-                  </p>
-                )}
-              </div>
-            </form>
-          </>
-        ) : (
-          <div className="flex-1 flex flex-col items-center justify-center p-12 text-center">
-            <div className="w-24 h-24 bg-brand-50 dark:bg-brand-900/20 rounded-3xl flex items-center justify-center text-brand-600 dark:text-brand-400 mb-8 animate-bounce transition-all">
-              <MessageSquare size={40} />
-            </div>
-            <h3 className="text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tighter mb-4">
-              Command Center Active
-            </h3>
-            <p className="text-gray-500 dark:text-slate-400 font-medium max-w-sm leading-relaxed mb-8 uppercase text-[10px] tracking-[0.2em]">
-              Select a contact to start a live private chat. Online status and new message alerts update in real time.
-            </p>
-            <div className="grid grid-cols-2 gap-4 w-full max-w-sm">
-              <div className="p-4 bg-gray-50 dark:bg-slate-800/50 rounded-2xl border border-dashed border-gray-200 dark:border-slate-700 flex flex-col items-center gap-2">
-                <ShieldCheck size={20} className="text-emerald-500" />
-                <span className="text-[9px] font-black uppercase text-gray-400 tracking-widest">
-                  End-to-End Encryption
-                </span>
-              </div>
-              <div className="p-4 bg-gray-50 dark:bg-slate-800/50 rounded-2xl border border-dashed border-gray-200 dark:border-slate-700 flex flex-col items-center gap-2">
-                <Activity size={20} className="text-brand-500" />
-                <span className="text-[9px] font-black uppercase text-gray-400 tracking-widest">
-                  Real-time Stream
-                </span>
+                {selectedUser.isBlocked && <p className="mt-2 text-[11px] font-medium text-red-500 px-2">This contact is blocked. Chat is disabled until admin unblocks them.</p>}
+              </form>
+            </>
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center p-10 text-center">
+              <div className="h-24 w-24 rounded-full bg-[#d9fdd3] dark:bg-[#1f2c34] flex items-center justify-center text-[#00a884] shadow-sm mb-6"><MessageSquare size={38} /></div>
+              <h3 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white tracking-tight">Select a chat</h3>
+              <p className="mt-3 text-sm text-slate-500 dark:text-slate-400 max-w-md">Pick a contact from the sidebar to start a private conversation with live online status and message updates.</p>
+              <div className="mt-8 grid grid-cols-2 gap-4 w-full max-w-md">
+                <div className="rounded-3xl bg-white/80 dark:bg-white/5 border border-black/5 dark:border-white/10 p-5"><ShieldCheck size={20} className="mx-auto text-[#00a884]" /><p className="mt-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Private chat</p></div>
+                <div className="rounded-3xl bg-white/80 dark:bg-white/5 border border-black/5 dark:border-white/10 p-5"><Activity size={20} className="mx-auto text-[#00a884]" /><p className="mt-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Live presence</p></div>
               </div>
             </div>
-          </div>
-        )}
-      </Card>
+          )}
+        </main>
+      </div>
     </div>
   );
 };

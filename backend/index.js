@@ -13,6 +13,7 @@ const {
   registerSocket,
   unregisterSocket,
 } = require('./src/services/presenceStore');
+const { setIo } = require('./src/services/socketNotifier');
 
 const app = express();
 const http = require('http');
@@ -24,6 +25,7 @@ const io = new Server(server, {
     methods: ["GET", "POST"]
   }
 });
+setIo(io);
 
 const port = process.env.PORT || 3000;
 
@@ -119,8 +121,14 @@ io.on('connection', (socket) => {
         receiverId,
         message
       });
+      const payload = newMessage.toJSON ? newMessage.toJSON() : newMessage;
       io.to(`user_${senderId}`).emit('receive_message', newMessage);
       io.to(`user_${receiverId}`).emit('receive_message', newMessage);
+      io.to(`user_${senderId}`).emit('message_delivered', {
+        messageId: payload.message_id,
+        receiverId: Number(receiverId),
+        deliveredAt: payload.createdAt || payload.timestamp,
+      });
     } catch (err) {
       console.error("Error saving message:", err);
     }

@@ -4,6 +4,7 @@ const { handle200 } = require('../helper/successHandler');
 const { handle500 } = require('../helper/errorHandler');
 const { Op } = require('sequelize');
 const { isUserOnline } = require('../services/presenceStore');
+const { emitToUsers } = require('../services/socketNotifier');
 
 /**
  * Get all users excluding the current logged-in user
@@ -112,7 +113,31 @@ const getMessages = async (req, res) => {
             }
         );
 
-        return handle200(res, messages, "Messages fetched successfully");
+        const updatedMessages = messages.map((message) => {
+            const data = message.toJSON ? message.toJSON() : message;
+            if (Number(data.senderId) === Number(receiverId) && Number(data.receiverId) === Number(senderId)) {
+                return {
+                    ...data,
+                    isSeen: true
+                };
+            }
+
+            return data;
+        });
+
+        const seenMessageIds = updatedMessages
+            .filter((message) => Number(message.senderId) === Number(receiverId) && Number(message.receiverId) === Number(senderId))
+            .map((message) => message.message_id);
+
+        if (seenMessageIds.length > 0) {
+            emitToUsers([senderId, receiverId], 'messages_seen', {
+                conversationUserId: Number(receiverId),
+                seenMessageIds,
+                seenAt: new Date().toISOString()
+            });
+        }
+
+        return handle200(res, updatedMessages, "Messages fetched successfully");
     } catch (error) {
         return handle500(res, error);
     }
